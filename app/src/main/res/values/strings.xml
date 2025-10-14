@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">HealthGuard</string>
+    <string name="capture">Capture</string>
+    <string name="back">Back</string>
+    <string name="image">Image</string>
+    <string name="default_web_client_id">192038493071-sae3sbgluh3hj9qjm9ph4ned64ivtepb.apps.googleusercontent.com</string>
+
+</resources>

@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "192038493071",
+    "firebase_url": "https://healthguard-b443f-default-rtdb.firebaseio.com",
+    "project_id": "healthguard-b443f",
+    "storage_bucket": "healthguard-b443f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:192038493071:android:b9d139307448ca3faec9fa",
+        "android_client_info": {
+          "package_name": "com.example.healthguard"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "192038493071-sae3sbgluh3hj9qjm9ph4ned64ivtepb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMNuqu6hWpn4IE0ZXUsFt6CyImKX899jA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "192038493071-sae3sbgluh3hj9qjm9ph4ned64ivtepb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
