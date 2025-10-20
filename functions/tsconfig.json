@@ -1,18 +1,10 @@
 {
-  "compileOnSave": true,
-  "include": [
-    "src"
-  ],
   "compilerOptions": {
-    "module": "NodeNext",
-    "noImplicitReturns": true,
-    "outDir": "lib",
-    "sourceMap": true,
+    "target": "ES2022",
+    "lib": ["es2022", "esnext.disposable"],
+    "module": "commonjs",
     "strict": true,
-    "target": "es2017",
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
-    "noUnusedLocals": true
+    "outDir": "./dist",
+    "esModuleInterop": true
   }
 }
