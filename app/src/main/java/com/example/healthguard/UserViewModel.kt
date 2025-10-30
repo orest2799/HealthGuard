@@ -1,8 +1,10 @@
 package com.example.healthguard
 
+// NEW: imports for backend calls
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.healthguard.data.network.dto.ApiClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 data class UserProfile(
     val firstName: String = "",
@@ -27,15 +31,19 @@ class UserViewModel : ViewModel() {
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile: StateFlow<UserProfile?> = _userProfile
 
-    private val _isSignedIn = MutableStateFlow(auth.currentUser != null)
+    // backing state for sign-in status
+    private val _isSignedIn = MutableStateFlow(false)
     val isSignedIn: StateFlow<Boolean> = _isSignedIn
+
+    // NEW: backend health status (exposed to UI)
+    private val _backendStatus = MutableStateFlow("Idle")
+    val backendStatus: StateFlow<String> = _backendStatus
 
     // Listen to FirebaseAuth changes and react
     private val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
         val user = firebaseAuth.currentUser
         _isSignedIn.value = (user != null)
         if (user != null) {
-            // Load user data whenever we get a signed-in user
             loadUserData(user.uid)
         } else {
             _userProfile.value = null
@@ -44,7 +52,6 @@ class UserViewModel : ViewModel() {
 
     init {
         auth.addAuthStateListener(authListener)
-        // If already signed in when VM is created, load immediately
         auth.currentUser?.uid?.let { loadUserData(it) }
     }
 
@@ -53,10 +60,8 @@ class UserViewModel : ViewModel() {
         _userProfile.value = profile
     }
 
-    /** Mark signed-in (useful if you prefer explicit signaling from Activity). */
     fun markSignedIn() { _isSignedIn.value = true }
 
-    /** Mark signed-out (clear local state). */
     fun markSignedOut() {
         _isSignedIn.value = false
         _userProfile.value = null
@@ -84,7 +89,10 @@ class UserViewModel : ViewModel() {
     }
 
     /** Create or update the profile in DB and cache it locally. */
-    fun upsertUserProfile(uid: String? = auth.currentUser?.uid, profile: UserProfile) {
+    fun upsertUserProfile(
+        uid: String? = auth.currentUser?.uid,
+        profile: UserProfile
+    ) {
         if (uid == null) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -96,6 +104,73 @@ class UserViewModel : ViewModel() {
                 Log.e("UserViewModel", "Failed to upsert profile for $uid", e)
             }
         }
+    }
+
+    // ---------------------------
+    //  BACKEND CALLS (NEW)
+    // ---------------------------
+
+    /**
+     * Simple health ping (no auth). Uses your Retrofit service if available.
+     * If you haven't added ApiClient.health yet, the "fallback" OkHttp code below still works.
+     */
+    fun pingBackend() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Preferred: via Retrofit service (requires HealthService + ApiClient.health)
+                val retrofitOk = runCatching { ApiClient.health.getHealth() }.getOrNull()
+                val text = when {
+                    retrofitOk != null && retrofitOk.isSuccessful -> retrofitOk.body() ?: "Empty"
+                    retrofitOk != null -> "Error: ${retrofitOk.code()} ${retrofitOk.message()}"
+                    else -> {
+                        // Fallback: raw OkHttp GET to /health (works even without Retrofit service)
+                        val base = getBaseUrl() // keep in one place
+                        OkHttpClient().newCall(
+                            Request.Builder().url("${base}health").build()
+                        ).execute().use { resp ->
+                            if (!resp.isSuccessful) "Error: ${resp.code}" else (resp.body?.string() ?: "Empty")
+                        }
+                    }
+                }
+                withContext(Dispatchers.Main) { _backendStatus.value = text }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { _backendStatus.value = "Error: ${e.message}" }
+            }
+        }
+    }
+
+    /**
+     * Authenticated health ping: attaches Firebase ID token as Bearer.
+     * Use this when your backend enforces authentication.
+     */
+    fun pingBackendSecure() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val user = auth.currentUser ?: throw IllegalStateException("Not signed in")
+                val token = user.getIdToken(false).await().token ?: throw IllegalStateException("No ID token")
+
+                val base = getBaseUrl()
+                val req = Request.Builder()
+                    .url("${base}health")
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+
+                OkHttpClient().newCall(req).execute().use { resp ->
+                    val text = if (!resp.isSuccessful) "Error: ${resp.code}" else (resp.body?.string() ?: "Empty")
+                    withContext(Dispatchers.Main) { _backendStatus.value = text }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { _backendStatus.value = "Auth error: ${e.message}" }
+            }
+        }
+    }
+
+    /** Central place to control the base URL (switch dev/prod easily). */
+    private fun getBaseUrl(): String {
+        // If you set BASE_URL inside ApiClient, you could read it from there instead.
+        // Keep trailing slash!
+        return "https://healthguard-backend-wuhgp7pn3a-oc.a.run.app/"
+        // For local testing you could return "http://192.168.1.146:8080/"
     }
 
     override fun onCleared() {

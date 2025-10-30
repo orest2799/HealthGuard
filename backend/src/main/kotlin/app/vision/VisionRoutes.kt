@@ -15,6 +15,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 fun Route.visionRoutes() {
     route("/vision") {
@@ -24,15 +26,25 @@ fun Route.visionRoutes() {
             val multipart = call.receiveMultipart()
 
             var imageBytes: ByteArray? = null
-            multipart.forEachPart { part ->
-                when (part) {
-                    is PartData.FileItem -> {
-                        // Simple + reliable: read InputStream into bytes
-                        imageBytes = part.streamProvider().readBytes()
+            try {
+                multipart.forEachPart { part ->
+                    when (part) {
+                        is PartData.FileItem -> {
+                            // Read the file bytes off the blocking InputStream on IO dispatcher
+                            imageBytes = withContext(Dispatchers.IO) {
+                                part.streamProvider().readBytes()
+                            }
+                        }
+                        else -> Unit
                     }
-                    else -> Unit
+                    part.dispose()
                 }
-                part.dispose()
+            } catch (t: Throwable) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    mapOf("error" to "Failed to read multipart data: ${t.message}")
+                )
+                return@post
             }
 
             if (imageBytes == null) {
@@ -48,6 +60,7 @@ fun Route.visionRoutes() {
                 .setContent(ByteString.copyFrom(imageBytes))
                 .build()
 
+            // TEXT_DETECTION works well for labels; use DOCUMENT_TEXT_DETECTION for documents
             val feature = Feature.newBuilder()
                 .setType(Feature.Type.TEXT_DETECTION)
                 .build()
@@ -57,39 +70,45 @@ fun Route.visionRoutes() {
                 .setImage(img)
                 .build()
 
-            var fullText = ""
+            val fullText: String
             val words = mutableListOf<String>()
 
-            ImageAnnotatorClient.create().use { client ->
-                val resp = client.batchAnnotateImages(listOf(request)).responsesList.first()
+            try {
+                withContext(Dispatchers.IO) {
+                    ImageAnnotatorClient.create().use { client ->
+                        val resp = client.batchAnnotateImages(listOf(request)).responsesList.first()
 
-                if (resp.hasError()) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        mapOf("error" to resp.error.message)
-                    )
-                    return@post
+                        if (resp.hasError()) {
+                            throw IllegalStateException(resp.error.message)
+                        }
+
+                        // Full page text
+                        fullText = resp.fullTextAnnotation?.text ?: ""
+
+                        // Individual tokens (skip the first which repeats full text)
+                        if (resp.textAnnotationsCount > 1) {
+                            resp.textAnnotationsList.drop(1).forEach { words += it.description }
+                        }
+                    }
                 }
-
-                fullText = resp.fullTextAnnotation?.text ?: ""
-
-                // Individual tokens (skip the first, which repeats full text)
-                if (resp.textAnnotationsCount > 1) {
-                    resp.textAnnotationsList.drop(1).forEach { words += it.description }
-                }
+            } catch (t: Throwable) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    mapOf("error" to "Vision API error: ${t.message}")
+                )
+                return@post
             }
 
-            // Keys expected by your Android client (VisionDto)
+            // Response shape your Android client (VisionDto) expects
             call.respond(
                 mapOf(
-                    "text" to fullText,      // primary
+                    "text" to fullText,      // primary field your app shows
                     "fullText" to fullText,  // backup
-                    "words" to words         // tokens
+                    "words" to words         // optional tokens
                 )
             )
         }
     }
 }
-
 
 

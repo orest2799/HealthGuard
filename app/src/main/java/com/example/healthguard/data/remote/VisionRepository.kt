@@ -1,8 +1,8 @@
 package com.example.healthguard.data.remote
 
 import android.graphics.Bitmap
-import com.example.healthguard.data.network.MedicineScanRequest
-import com.example.healthguard.data.network.ScanSavedResponse
+import com.example.healthguard.data.network.dto.MedicineScanRequest
+import com.example.healthguard.data.network.dto.ScanSavedResponse
 import com.example.healthguard.data.network.dto.ApiClient
 import com.example.healthguard.data.network.dto.VisionDto
 import okhttp3.MediaType.Companion.toMediaType

@@ -7,11 +7,20 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
+/**
+ * Define all backend Retrofit interfaces here.
+ * Keeps the API surface modular but centralized.
+ */
+
+
+
+
+
+// 🔧 Main Retrofit client
 object ApiClient {
 
-    // TODO: set your PC/LAN IP that the phone can reach
-    private const val BASE_URL = "http://192.168.1.146:8080/"
-
+    private const val BASE_URL = "https://healthguard-backend-192038493071.europe-west8.run.app/"
+    //private const val BASE_URL = "http://192.168.1.146:8080/"
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
@@ -28,8 +37,11 @@ object ApiClient {
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
 
-    // Expose service singletons so UI/Repos never touch Retrofit directly
+    // Expose each API as a lazy singleton
+
     val vision: VisionService by lazy { retrofit.create(VisionService::class.java) }
-    val scan:   ScanService   by lazy { retrofit.create(ScanService::class.java) }
-    val med:    MedService    by lazy { retrofit.create(MedService::class.java) }
+    val scan: ScanService by lazy { retrofit.create(ScanService::class.java) }
+    val med: MedService by lazy { retrofit.create(MedService::class.java) }
+    val health: HealthService by lazy { retrofit.create(HealthService::class.java) }
+    val chat:    ChatService   by lazy { retrofit.create(ChatService::class.java) }
 }

@@ -9,7 +9,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.healthguard.presentation.medicine.MedicineViewModel
 
 @Composable
 fun MedicineSearchScreen(viewModel: MedicineViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {

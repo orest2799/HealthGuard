@@ -1,5 +1,7 @@
 package app.meds
 
+/* ---------- Search/aggregation models (EMA/OpenFDA) ---------- */
+
 data class MedRecord(
     val source: String? = null,
     val id: String? = null,
@@ -15,15 +17,16 @@ data class MedRecord(
     val country: String? = null,
     val atc: String? = null,
 
-    // ✅ NEW: list of active substances (tokens you may match against OCR text)
+    // tokens (substances) that may match OCR
     val substances: List<String> = emptyList(),
 
     val summary: String? = null,
     val url: String? = null,
 
-    // ✅ NEW: language hint for the record (“en”, “el”, etc.)
+    // hint for language (“en”, “el”, …)
     val language: String? = null,
 
+    // computed match score (higher is better)
     val score: Double? = null
 )
 
@@ -33,8 +36,21 @@ data class MedSearchResponse(
     val results: List<MedRecord> = emptyList()
 )
 
-// Used by providers
 data class MedQuery(
     val q: String,
     val lang: String? = null
+)
+
+/* ---------- Gemini OCR extraction models ---------- */
+
+data class MedField(
+    val name: String,
+    val strength: String? = null,
+    val form: String? = null,
+    val frequency: String? = null,
+    val route: String? = null
+)
+
+data class ExtractionResult(
+    val medicines: List<MedField> = emptyList()
 )

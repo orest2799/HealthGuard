@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.RectF
 import android.os.Build
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -77,6 +78,9 @@ import com.example.healthguard.data.network.dto.MedRecord
 import com.example.healthguard.data.network.dto.VisionDto
 import com.example.healthguard.data.remote.MedicineRepository
 import com.example.healthguard.data.remote.VisionRepository
+import com.example.healthguard.data.repo.ChatRepository
+import com.example.healthguard.data.repo.ChatSessionResult
+import com.example.healthguard.presentation.chat.MatchOverlayViewModel
 import com.example.healthguard.presentation.utils.Detection
 import com.example.healthguard.presentation.utils.YoloV8Detector
 import com.example.healthguard.presentation.utils.decodeAndFixOrientation
@@ -92,11 +96,16 @@ import kotlin.coroutines.resume
 
 /* ------------------------------------------------------------- *
  * Camera screen (scrollable; app-only saves; conditional folder)
+ * FIXED: Now uses ChatRepository.processMedicineImage() instead of analyzeOcr
+ * FIXED: Crash prevention when detector closes during navigation
  * ------------------------------------------------------------- */
 @RequiresApi(Build.VERSION_CODES.P)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CameraScreen(navController: NavController) {
+fun CameraScreen(
+    navController: NavController,
+    overlayVm: MatchOverlayViewModel
+) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
@@ -129,8 +138,8 @@ fun CameraScreen(navController: NavController) {
     // State
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var isBusy by remember { mutableStateOf(false) }
-    var detections by remember { mutableStateOf<List<Detection>>(emptyList()) }        // normalized [0..1] for overlay
-    var best by remember { mutableStateOf<Detection?>(null) }                          // normalized
+    var detections by remember { mutableStateOf<List<Detection>>(emptyList()) }
+    var best by remember { mutableStateOf<Detection?>(null) }
     var conf by remember { mutableFloatStateOf(0.45f) }
 
     // Results
@@ -146,6 +155,7 @@ fun CameraScreen(navController: NavController) {
     // repositories
     val visionRepo = remember { VisionRepository() }
     val medsRepo = remember { MedicineRepository() }
+    val chatRepo = remember { ChatRepository() }
 
     Scaffold(
         topBar = {
@@ -175,7 +185,6 @@ fun CameraScreen(navController: NavController) {
                 if (!hasCam) {
                     Text("Camera permission is required.")
                 } else {
-                    // Camera preview
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { ctx ->
@@ -203,11 +212,24 @@ fun CameraScreen(navController: NavController) {
                                     .also { ia ->
                                         ia.setAnalyzer(analyzerExec) { proxy ->
                                             try {
-                                                if (isBusy) return@setAnalyzer
-                                                val frame = proxy.toBitmap()
-                                                val raw = detector.detect(frame, conf, 0.5f)
+                                                // ✅ Check if busy before processing
+                                                if (isBusy) {
+                                                    proxy.close()
+                                                    return@setAnalyzer
+                                                }
 
-                                                // Normalize boxes to 0..1 for overlay
+                                                val frame = proxy.toBitmap()
+
+                                                // ✅ Safely detect with try-catch for closed detector
+                                                val raw = try {
+                                                    detector.detect(frame, conf, 0.5f)
+                                                } catch (e: IllegalStateException) {
+                                                    // Detector was closed (navigated away from screen)
+                                                    Log.d("CameraScreen", "Detector closed, stopping analysis")
+                                                    proxy.close()
+                                                    return@setAnalyzer
+                                                }
+
                                                 val norm = raw.map { d ->
                                                     val r = d.boundingBox
                                                     Detection(
@@ -223,6 +245,8 @@ fun CameraScreen(navController: NavController) {
                                                 }
                                                 detections = norm
                                                 best = norm.maxByOrNull { it.confidence }
+                                            } catch (e: Exception) {
+                                                Log.e("CameraScreen", "Analyzer error", e)
                                             } finally {
                                                 proxy.close()
                                             }
@@ -244,10 +268,8 @@ fun CameraScreen(navController: NavController) {
                         }
                     )
 
-                    // Live overlay on top of preview
                     LiveBoxesOverlay(detections)
 
-                    // Capture
                     Button(
                         enabled = !isBusy && best != null,
                         onClick = {
@@ -275,8 +297,6 @@ fun CameraScreen(navController: NavController) {
                                         scope.launch(Dispatchers.Default) {
                                             try {
                                                 val photo = decodeAndFixOrientation(temp.absolutePath)
-
-                                                // Convert normalized detections -> ABSOLUTE pixel detections
                                                 val detectionsAbs = detections.map { d ->
                                                     val nr = d.boundingBox
                                                     val absRect = RectF(
@@ -288,29 +308,26 @@ fun CameraScreen(navController: NavController) {
                                                     Detection(absRect, d.label, d.confidence)
                                                 }
 
-                                                // Draw boxes/labels (your helper in root package)
                                                 val annotated = com.example.healthguard.drawDetectionsOnBitmap(
                                                     photo, detectionsAbs
                                                 )
 
-                                                // ---------- SAVE ONLY IN APP GALLERY ----------
                                                 val name = "IMG_${timestamp()}.jpg"
                                                 val hasDetection = best != null
                                                 val folder = if (hasDetection) "Medicine" else "Photos"
                                                 val savedApp = withContext(Dispatchers.IO) {
                                                     saveToAppPictures(context, annotated, name, folder)
                                                 }
-                                                // ----------------------------------------------
 
-                                                // Small annotated preview
                                                 thumb = try {
                                                     annotated.scale(
                                                         320,
                                                         (320f / annotated.width * annotated.height).toInt()
                                                     )
-                                                } catch (_: Exception) { null }
+                                                } catch (_: Exception) {
+                                                    null
+                                                }
 
-                                                // OCR on best crop
                                                 val bestBox = best
                                                 ocrText = if (bestBox != null) {
                                                     val crop = cropFromNormalized(photo, bestBox.boundingBox)
@@ -319,15 +336,84 @@ fun CameraScreen(navController: NavController) {
                                                             140,
                                                             (140f / crop.width * crop.height).toInt()
                                                         )
-                                                    } catch (_: Exception) { null }
-
+                                                    } catch (_: Exception) {
+                                                        null
+                                                    }
                                                     val dto = visionRepo.ocr(crop, 88)
                                                     dto.textFromServer() ?: "(no text found)"
-                                                } else {
-                                                    "(no detection)"
+                                                } else "(no detection)"
+
+                                                // 🔵 NEW APPROACH: Use ChatRepository.processMedicineImage
+                                                val ocr = ocrText?.trim().orEmpty()
+                                                if (ocr.length >= 3 && temp.exists()) {
+                                                    try {
+                                                        // Process the full image
+                                                        val imageToProcess = File(context.cacheDir, "process_${System.currentTimeMillis()}.jpg")
+                                                        imageToProcess.outputStream().use { os ->
+                                                            annotated.compress(Bitmap.CompressFormat.JPEG, 90, os)
+                                                        }
+
+                                                        Log.d("CameraScreen", "Starting processMedicineImage...")
+                                                        val result = chatRepo.processMedicineImage(imageToProcess)
+
+                                                        when (result) {
+                                                            is ChatSessionResult.Success -> {
+                                                                Log.d("CameraScreen", "Success! SessionId: ${result.sessionId}")
+
+                                                                // Show bubble on Main thread with try-catch
+                                                                withContext(Dispatchers.Main) {
+                                                                    try {
+                                                                        val title = result.medicines.firstOrNull()?.brand
+                                                                            ?: result.medicines.firstOrNull()?.generic
+                                                                            ?: "Φάρμακο"
+
+                                                                        Log.d("CameraScreen", "Showing overlay with title: $title")
+
+                                                                        overlayVm.showFromChatResult(
+                                                                            sessionId = result.sessionId,
+                                                                            title = title,
+                                                                            sources = result.sources
+                                                                        )
+
+                                                                        Log.d("CameraScreen", "Overlay shown successfully")
+                                                                    } catch (e: Exception) {
+                                                                        Log.e("CameraScreen", "Error showing overlay", e)
+                                                                        Toast.makeText(
+                                                                            context,
+                                                                            "Βρέθηκε: ${result.medicines.firstOrNull()?.brand ?: "φάρμακο"}",
+                                                                            Toast.LENGTH_LONG
+                                                                        ).show()
+                                                                    }
+                                                                }
+                                                            }
+                                                            is ChatSessionResult.Error -> {
+                                                                Log.e("CameraScreen", "Chat error: ${result.message}")
+                                                                withContext(Dispatchers.Main) {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Σφάλμα: ${result.message}",
+                                                                        Toast.LENGTH_LONG
+                                                                    ).show()
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Clean up temp file
+                                                        imageToProcess.delete()
+
+                                                    } catch (e: Exception) {
+                                                        Log.e("CameraScreen", "Processing failed", e)
+                                                        withContext(Dispatchers.Main) {
+                                                            Toast.makeText(
+                                                                context,
+                                                                "Σφάλμα επεξεργασίας: ${e.message}",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                        }
+                                                    }
                                                 }
 
-                                                // ---- Medicine search using OCR text ----
+                                                // Optional: local medicine search (keep this for preview)
                                                 val qCandidate = ocrText?.trim().orEmpty()
                                                 if (qCandidate.length >= 3) {
                                                     try {
@@ -335,8 +421,6 @@ fun CameraScreen(navController: NavController) {
                                                             .firstOrNull()
                                                             .orEmpty()
                                                             .take(80)
-
-                                                        // If your backend supports both sources, pass source="both"
                                                         val results = medsRepo.searchMedicines(
                                                             qRaw = q,
                                                             lang = null,
@@ -354,7 +438,6 @@ fun CameraScreen(navController: NavController) {
                                                     "Saved to app in $folder."
                                                 else
                                                     "App save failed."
-
                                             } catch (e: Exception) {
                                                 statusMsg = "Error: ${e.message}"
                                             } finally {
@@ -385,14 +468,8 @@ fun CameraScreen(navController: NavController) {
             }
 
             Spacer(Modifier.height(12.dp))
-
             Text("Confidence Threshold: %.2f".format(conf))
-            Slider(
-                value = conf,
-                onValueChange = { conf = it },
-                valueRange = 0f..1f
-            )
-
+            Slider(value = conf, onValueChange = { conf = it }, valueRange = 0f..1f)
             Spacer(Modifier.navigationBarsPadding())
         }
     }
@@ -409,14 +486,13 @@ private fun LiveBoxesOverlay(detections: List<Detection>) {
         val h = size.height
         detections.forEach { d ->
             val r = d.boundingBox
-            val left = r.left * w
-            val top = r.top * h
-            val right = r.right * w
-            val bottom = r.bottom * h
             drawRect(
                 color = Color(0xFF00B0FF),
-                topLeft = Offset(left, top),
-                size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
+                topLeft = Offset(r.left * w, r.top * h),
+                size = androidx.compose.ui.geometry.Size(
+                    (r.right - r.left) * w,
+                    (r.bottom - r.top) * h
+                ),
                 style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
             )
         }
@@ -434,71 +510,49 @@ private fun ResultCard(
     onOpenUrl: (String) -> Unit
 ) {
     val cardScroll = rememberScrollState()
-
     Card(
         elevation = CardDefaults.cardElevation(4.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 0.dp, max = 360.dp)   // capped height; internal scroll
+            .heightIn(min = 0.dp, max = 360.dp)
     ) {
         Column(Modifier.verticalScroll(cardScroll)) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
                 thumb?.let {
-                    Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(84.dp)
-                            .padding(end = 12.dp)
-                    )
+                    Image(it.asImageBitmap(), null, Modifier.size(84.dp).padding(end = 12.dp))
                 }
                 crop?.let {
-                    Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(84.dp)
-                            .padding(end = 12.dp)
-                    )
+                    Image(it.asImageBitmap(), null, Modifier.size(84.dp).padding(end = 12.dp))
                 }
                 Column(Modifier.weight(1f)) {
                     Text("OCR", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(ocr, style = MaterialTheme.typography.bodyLarge)
-
                     if (!status.isNullOrBlank()) {
                         Spacer(Modifier.height(12.dp))
                         Text("Status", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Text(status, style = MaterialTheme.typography.bodyLarge)
                     }
-
                     Spacer(Modifier.height(12.dp))
                     Text("Matches", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-
                     when {
                         !medsError.isNullOrBlank() -> Text(medsError, color = Color(0xFFB00020))
                         meds.isEmpty() -> Text("No results.")
-                        else -> {
-                            meds.take(20).forEach { m ->
-                                val line1 = listOfNotNull(m.brand, m.generic)
-                                    .distinct().joinToString(" • ")
-                                    .ifBlank { m.generic ?: m.brand ?: "Unknown" }
-                                val line2 = listOfNotNull(m.strength, m.form).joinToString(" • ")
-                                val clickable = (m.url?.isNotBlank() == true)
-
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .then(if (clickable) Modifier.clickable { onOpenUrl(m.url!!) } else Modifier)
-                                        .padding(vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        line1,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = if (clickable) Color(0xFF1A73E8) else Color.Unspecified
-                                    )
-                                    if (line2.isNotBlank()) {
-                                        Text(line2, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-                                    }
+                        else -> meds.take(20).forEach { m ->
+                            val line1 = listOfNotNull(m.brand, m.generic)
+                                .distinct().joinToString(" • ")
+                                .ifBlank { m.generic ?: m.brand ?: "Unknown" }
+                            val line2 = listOfNotNull(m.strength, m.form).joinToString(" • ")
+                            val clickable = (m.url?.isNotBlank() == true)
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .then(if (clickable) Modifier.clickable { onOpenUrl(m.url!!) } else Modifier)
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(line1, style = MaterialTheme.typography.bodyLarge,
+                                    color = if (clickable) Color(0xFF1A73E8) else Color.Unspecified)
+                                if (line2.isNotBlank()) {
+                                    Text(line2, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                                 }
                             }
                         }
@@ -512,17 +566,13 @@ private fun ResultCard(
 /* ------------------------------------------------------------- *
  * Helpers
  * ------------------------------------------------------------- */
-
 private fun openCustomTab(context: Context, url: String) {
-    runCatching {
-        CustomTabsIntent.Builder().build().launchUrl(context, url.toUri())
-    }
+    runCatching { CustomTabsIntent.Builder().build().launchUrl(context, url.toUri()) }
 }
 
 private fun timestamp(): String =
     SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
 
-/** Save to app-scoped Pictures/<subFolder> (visible only in your app’s gallery). */
 private fun saveToAppPictures(
     context: Context,
     bitmap: Bitmap,
@@ -536,29 +586,21 @@ private fun saveToAppPictures(
     true
 } catch (_: Exception) { false }
 
-/** Crop from normalized [0..1] rect (against captured photo). */
 private fun cropFromNormalized(photo: Bitmap, norm: RectF): Bitmap {
     val left = (norm.left * photo.width).toInt().coerceIn(0, photo.width - 1)
     val top = (norm.top * photo.height).toInt().coerceIn(0, photo.height - 1)
     val right = (norm.right * photo.width).toInt().coerceIn(left + 1, photo.width)
     val bottom = (norm.bottom * photo.height).toInt().coerceIn(top + 1, photo.height)
-    val w = (right - left).coerceAtLeast(1)
-    val h = (bottom - top).coerceAtLeast(1)
-    return Bitmap.createBitmap(photo, left, top, w, h)
+    return Bitmap.createBitmap(photo, left, top, right - left, bottom - top)
 }
 
 /* --------- CameraX helpers ---------- */
-
 private suspend fun Context.getCameraProvider(): ProcessCameraProvider =
     kotlinx.coroutines.suspendCancellableCoroutine { cont ->
         val future = ProcessCameraProvider.getInstance(this)
-        future.addListener(
-            { cont.resume(future.get()) },
-            ContextCompat.getMainExecutor(this)
-        )
+        future.addListener({ cont.resume(future.get()) }, ContextCompat.getMainExecutor(this))
     }
 
-/** Convert ImageProxy (RGBA_8888) to Bitmap. */
 private fun ImageProxy.toBitmap(): Bitmap {
     val plane = planes[0].buffer
     val w = width
@@ -573,8 +615,6 @@ private fun ImageProxy.toBitmap(): Bitmap {
 }
 
 /* --------- VisionDto helper ---------- */
-
 private fun VisionDto.textFromServer(): String? =
     (text ?: fullText ?: words?.joinToString(" "))
         ?.takeIf { it.isNotBlank() }
-

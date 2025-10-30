@@ -1,6 +1,8 @@
 package app
 
-import app.meds.medsRoutes
+import app.chat.chatRoutes
+import app.meds.medRoutes
+import app.routes.dbRoutes
 import app.scans.scanRoutes
 import app.vision.visionRoutes
 import com.fasterxml.jackson.databind.SerializationFeature
@@ -35,9 +37,7 @@ fun main() {
 
 fun Application.module() {
     install(Compression) { gzip() }
-
     install(CallLogging) { level = Level.INFO }
-
     install(CORS) {
         anyHost()
         allowHeader(HttpHeaders.ContentType)
@@ -45,7 +45,6 @@ fun Application.module() {
         allowMethod(HttpMethod.Post)
         allowMethod(HttpMethod.Options)
     }
-
     install(ContentNegotiation) {
         jackson {
             registerModule(KotlinModule.Builder().build())
@@ -53,14 +52,17 @@ fun Application.module() {
         }
     }
 
+    // Primary routes under routing { }
     routing {
-        get("/health") { call.respondText("OK") }   // ✅ respond with text
-
-        // Route groups
+        get("/health") { call.respondText("OK") }
         visionRoutes()
-        medsRoutes()
+        medRoutes()     // ← IMPORTANT: this MUST match the function name in MedRoutes.kt
         scanRoutes()
+        dbRoutes()
+        chatRoutes()
     }
-}
 
+    // Chat routes are defined as an Application extension
+
+}
 

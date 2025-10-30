@@ -2,15 +2,14 @@ package com.example.healthguard.presentation.chat
 
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
-import com.example.healthguard.data.network.dto.AnalyzeOcrResponse
-import com.example.healthguard.data.network.dto.SourceRef
+import com.example.healthguard.data.network.dto.ChatSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 data class BubblePayload(
     val sessionId: String,
     val title: String,
-    val sources: List<SourceRef> = emptyList()
+    val sources: List<ChatSource> = emptyList()  // Changed from SourceRef to ChatSource
 )
 
 class MatchOverlayViewModel : ViewModel() {
@@ -23,12 +22,24 @@ class MatchOverlayViewModel : ViewModel() {
     private val _position = MutableStateFlow(Offset.Zero)
     val position: StateFlow<Offset> = _position
 
-    fun showFromAnalyzeResponse(res: AnalyzeOcrResponse) {
-        val title = res.medicines.firstOrNull()?.name ?: (res.sources.firstOrNull()?.name ?: "Φάρμακο")
-        _payload.value = BubblePayload(res.sessionId, title, res.sources)
+    /**
+     * NEW: Show bubble from ChatSessionResult
+     * This replaces the old showFromAnalyzeResponse method
+     */
+    fun showFromChatResult(
+        sessionId: String,
+        title: String,
+        sources: List<ChatSource>
+    ) {
+        _payload.value = BubblePayload(sessionId, title, sources)
         _visible.value = true
     }
 
-    fun hide() { _visible.value = false }
-    fun setPosition(offset: Offset) { _position.value = offset }
+    fun hide() {
+        _visible.value = false
+    }
+
+    fun setPosition(offset: Offset) {
+        _position.value = offset
+    }
 }

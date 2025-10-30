@@ -1,28 +1,4 @@
-# Automatic fix for GalinosProvider.kt
-# This will backup the old file and create a clean new one
-
-$targetFile = "backend\src\main\kotlin\app\meds\GalinosProvider.kt"
-
-Write-Host "========================================" -ForegroundColor Blue
-Write-Host "Auto-Fix GalinosProvider.kt" -ForegroundColor Blue
-Write-Host "========================================" -ForegroundColor Blue
-Write-Host ""
-
-# Check if file exists
-if (-not (Test-Path $targetFile)) {
-    Write-Host "[ERROR] File not found: $targetFile" -ForegroundColor Red
-    Write-Host "Are you in the project root?" -ForegroundColor Yellow
-    exit 1
-}
-
-# Backup old file
-$backupFile = "$targetFile.backup"
-Copy-Item $targetFile $backupFile -Force
-Write-Host "[OK] Backed up to: $backupFile" -ForegroundColor Green
-
-# Create new content
-$newContent = @'
-package app.meds
+﻿package app.meds
 
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -56,17 +32,17 @@ class GalinosProvider(
                     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
         private val TARGET_SECTION_HINTS = listOf(
-            "Ενδείξεις",
-            "Δοσολογία",
-            "Αντενδείξεις",
-            "Προειδοποιήσεις",
-            "Αλληλεπιδράσεις",
-            "Ανεπιθύμητες ενέργειες",
-            "Κυοφορία",
-            "Γαλουχία",
-            "Υπερδοσολογία",
-            "Φαρμακοδυναμική",
-            "Φαρμακοκινητική",
+            "Î•Î½Î´ÎµÎ¯Î¾ÎµÎ¹Ï‚",
+            "Î”Î¿ÏƒÎ¿Î»Î¿Î³Î¯Î±",
+            "Î‘Î½Ï„ÎµÎ½Î´ÎµÎ¯Î¾ÎµÎ¹Ï‚",
+            "Î ÏÎ¿ÎµÎ¹Î´Î¿Ï€Î¿Î¹Î®ÏƒÎµÎ¹Ï‚",
+            "Î‘Î»Î»Î·Î»ÎµÏ€Î¹Î´ÏÎ¬ÏƒÎµÎ¹Ï‚",
+            "Î‘Î½ÎµÏ€Î¹Î¸ÏÎ¼Î·Ï„ÎµÏ‚ ÎµÎ½Î­ÏÎ³ÎµÎ¹ÎµÏ‚",
+            "ÎšÏ…Î¿Ï†Î¿ÏÎ¯Î±",
+            "Î“Î±Î»Î¿Ï…Ï‡Î¯Î±",
+            "Î¥Ï€ÎµÏÎ´Î¿ÏƒÎ¿Î»Î¿Î³Î¯Î±",
+            "Î¦Î±ÏÎ¼Î±ÎºÎ¿Î´Ï…Î½Î±Î¼Î¹ÎºÎ®",
+            "Î¦Î±ÏÎ¼Î±ÎºÎ¿ÎºÎ¹Î½Î·Ï„Î¹ÎºÎ®",
         )
 
         private val KNOWN_MEDICINES = mapOf(
@@ -167,7 +143,7 @@ class GalinosProvider(
         val container: Element = doc.selectFirst("article,main,.content,.container,.page-content,body") ?: doc.body()
 
         val rawSections = LinkedHashMap<String, StringBuilder>()
-        var currentTitle = "Πληροφορίες"
+        var currentTitle = "Î Î»Î·ÏÎ¿Ï†Î¿ÏÎ¯ÎµÏ‚"
 
         fun pushText(text: String) {
             if (text.isBlank()) return
@@ -241,36 +217,3 @@ class GalinosProvider(
     private fun String.clean(): String =
         this.replace(Regex("\\s+"), " ").trim()
 }
-'@
-
-# Write new content
-Set-Content -Path $targetFile -Value $newContent -Encoding UTF8
-Write-Host "[OK] Created new GalinosProvider.kt" -ForegroundColor Green
-Write-Host ""
-
-# Verify
-Write-Host "Verifying changes..." -ForegroundColor Yellow
-$content = Get-Content $targetFile -Raw
-
-if ($content -match "duckduckgo") {
-    Write-Host "[ERROR] Still has DuckDuckGo references!" -ForegroundColor Red
-} else {
-    Write-Host "[OK] No DuckDuckGo references" -ForegroundColor Green
-}
-
-if ($content -match "KNOWN_MEDICINES") {
-    Write-Host "[OK] Has KNOWN_MEDICINES map" -ForegroundColor Green
-} else {
-    Write-Host "[ERROR] Missing KNOWN_MEDICINES!" -ForegroundColor Red
-}
-
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Blue
-Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "1. Rebuild: .\gradlew.bat :backend:clean :backend:build" -ForegroundColor White
-Write-Host "2. Run: .\gradlew.bat :backend:run" -ForegroundColor White
-Write-Host "3. Test: .\simple-test.ps1" -ForegroundColor White
-Write-Host ""
-Write-Host "If you want to restore the old file:" -ForegroundColor Gray
-Write-Host "  Copy-Item $backupFile $targetFile -Force" -ForegroundColor Gray
-Write-Host "========================================" -ForegroundColor Blue

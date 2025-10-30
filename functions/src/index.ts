@@ -1,39 +1,40 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import vision from "@google-cloud/vision";
+// src/index.ts
+import functions from "@google-cloud/functions-framework";
+import { ImageAnnotatorClient } from "@google-cloud/vision";
 
-admin.initializeApp();
-const visionClient = new vision.ImageAnnotatorClient();
+const client = new ImageAnnotatorClient();
 
-export const annotateImage = functions
-  .region("europe-west4")
-  .https.onRequest(async (req, res) => {
-    try {
-      if (req.method !== "POST") {
-        res.status(405).send("Use POST");
-        return;
-      }
-
-      const imageBase64: string | undefined = req.body?.imageBase64;
-      if (!imageBase64) {
-        res.status(400).json({ error: "imageBase64 is required" });
-        return;
-      }
-
-      // If the client sent a data URL, strip the prefix
-      const clean = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
-      const buffer = Buffer.from(clean, "base64");
-
-      const [result] = await visionClient.textDetection({ image: { content: buffer } });
-      const annotations = result.textAnnotations ?? [];
-      const fullText = annotations.length ? annotations[0].description ?? "" : "";
-
-      res.json({
-        text: fullText,
-        words: annotations.slice(1).map(a => a.description ?? "")
-      });
-    } catch (e: any) {
-      console.error(e);
-      res.status(500).json({ error: e?.message ?? "OCR failed" });
+/**
+ * HTTP POST body:
+ *  { imageUri?: string, contentBase64?: string, features?: { type: string, maxResults?: number }[] }
+ */
+functions.http("annotateImage", async (req, res) => {
+  try {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Use POST" });
+      return;
     }
-  });
+
+    const { imageUri, contentBase64, features } = req.body || {};
+
+    if (!imageUri && !contentBase64) {
+      res.status(400).json({ error: "Provide imageUri or contentBase64" });
+      return;
+    }
+
+    const request = {
+      image: imageUri ? { source: { imageUri } } : { content: contentBase64 },
+      features:
+        Array.isArray(features) && features.length
+          ? features
+          : [{ type: "LABEL_DETECTION", maxResults: 10 }],
+    };
+
+    const [resp] = await client.annotateImage(request as any);
+    res.json(resp);
+  } catch (e: any) {
+    console.error(e);
+    res.status(500).json({ error: e?.message || "Internal error" });
+  }
+});
+

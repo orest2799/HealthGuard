@@ -30,3 +30,9 @@ local.properties
 # OS
 .DS_Store
 Thumbs.db
+# Environment variables
+.env
+backend/.env
+
+# Keep the example template
+!.env.example

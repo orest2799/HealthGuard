@@ -1,4 +1,4 @@
-package com.example.healthguard.data.network
+package com.example.healthguard.data.network.dto
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass

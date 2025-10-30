@@ -1,4 +1,4 @@
-package com.example.healthguard.presentation.medicine
+package com.example.healthguard.presentation.medication
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
