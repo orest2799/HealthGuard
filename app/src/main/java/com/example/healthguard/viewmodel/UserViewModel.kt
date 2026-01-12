@@ -132,7 +132,7 @@ class UserViewModel : ViewModel() {
                         }
                     }
                 }
-                withContext(Dispatchers.Main) { _backendStatus.value = text }
+                withContext(Dispatchers.Main) { _backendStatus.value = text as String }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { _backendStatus.value = "Error: ${e.message}" }
             }
@@ -165,12 +165,21 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    /** Central place to control the base URL (switch dev/prod easily). */
+
     private fun getBaseUrl(): String {
-        // If you set BASE_URL inside ApiClient, you could read it from there instead.
-        // Keep trailing slash!
-        return "https://healthguard-backend-wuhgp7pn3a-oc.a.run.app/"
-        // For local testing you could return "http://192.168.1.146:8080/"
+        // 🔧 Keep these in sync with ApiClient.kt
+        val useLocal = true
+        val useEmulator = false  // ← Set to false for physical device
+
+        val localEmulator = "http://10.0.2.2:8080/"
+        val localDevice = "http://192.168.1.146:8080/"  // ← UPDATE if your computer IP is different
+        val prodUrl = "https://healthguard-backend-192038493071.europe-west8.run.app/"
+
+        return when {
+            !useLocal -> prodUrl
+            useEmulator -> localEmulator
+            else -> localDevice  // ← Will now use this!
+        }
     }
 
     override fun onCleared() {

@@ -1,38 +1,60 @@
+############################
 # Gradle
+############################
 .gradle/
-build/
 **/build/
 
+############################
 # IntelliJ / Android Studio
+############################
 .idea/
 *.iml
 .kotlin/
-.DS_Store
 
-# Logs
-*.log
-
-# Firebase / Google secrets
-*.keystore
-google-services.json
-
-# Misc
-local.properties
-
-# IDE
-.idea/
-*.iml
-
-# Gradle / build
-**/build/
-.gradle/
-
-# OS
+############################
+# OS files
+############################
 .DS_Store
 Thumbs.db
-# Environment variables
-.env
-backend/.env
 
-# Keep the example template
+############################
+# Logs
+############################
+*.log
+
+############################
+# Android / Firebase
+############################
+google-services.json
+*.keystore
+*.jks
+
+############################
+# Local configuration
+############################
+local.properties
+**/local.properties
+
+############################
+# Environment variables
+############################
+.env
+**/.env
 !.env.example
+
+############################
+# Secrets / credentials
+############################
+backend/keys/
+keys/
+**/keys/
+secrets.properties
+secretes.properties
+**/secrets.properties
+
+############################
+# Temporary / test artifacts
+############################
+*.jpg
+*.png
+*.trace

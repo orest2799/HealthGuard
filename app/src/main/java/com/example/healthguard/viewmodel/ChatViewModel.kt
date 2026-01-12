@@ -70,7 +70,7 @@ class ChatViewModel : ViewModel() {
                     fromUser = true,
                     sources = emptyList()
                 )
-                _messages.value = _messages.value + userMessage
+                _messages.value += userMessage
 
                 // Show sending indicator
                 _isSending.value = true
@@ -92,7 +92,7 @@ class ChatViewModel : ViewModel() {
                             fromUser = false,
                             sources = sources
                         )
-                        _messages.value = _messages.value + aiMessage
+                        _messages.value += aiMessage
 
                         // Hide sending indicator
                         _isSending.value = false
@@ -107,7 +107,7 @@ class ChatViewModel : ViewModel() {
                             fromUser = false,
                             sources = emptyList()
                         )
-                        _messages.value = _messages.value + errorMessage
+                        _messages.value += errorMessage
 
                         _isSending.value = false
                     }
@@ -122,7 +122,7 @@ class ChatViewModel : ViewModel() {
                     fromUser = false,
                     sources = emptyList()
                 )
-                _messages.value = _messages.value + errorMessage
+                _messages.value += errorMessage
 
                 _isSending.value = false
             }

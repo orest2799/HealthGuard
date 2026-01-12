@@ -7,8 +7,8 @@ import kotlinx.coroutines.withContext
 class BackendRepository {
     suspend fun checkHealth(): String = withContext(Dispatchers.IO) {
         val response = ApiClient.health.getHealth()
-        if (response.isSuccessful) response.body() ?: "Empty response"
-        else "Error: ${response.code()} ${response.message()}"
+        (if (response.isSuccessful) response.body() ?: "Empty response"
+        else "Error: ${response.code()} ${response.message()}") as String
     }
 }
 
