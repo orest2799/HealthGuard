@@ -1,4 +1,4 @@
-package com.example.healthguard.presentation.chat
+package com.example.healthguard.viewmodel
 
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel

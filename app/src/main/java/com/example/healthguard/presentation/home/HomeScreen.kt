@@ -49,8 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.healthguard.R
-import com.example.healthguard.UserViewModel
-import com.example.healthguard.ui.theme.ThemeViewModel
+import com.example.healthguard.viewmodel.UserViewModel
+import com.example.healthguard.viewmodel.ThemeViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,12 +1,11 @@
 package com.example.healthguard
 
-import com.example.healthguard.presentation.utils.Detection
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
-
+import com.example.healthguard.presentation.utils.Detection
 
 fun drawDetectionsOnBitmap(original: Bitmap, detections: List<Detection>): Bitmap {
     val resultBitmap = original.copy(Bitmap.Config.ARGB_8888, true)

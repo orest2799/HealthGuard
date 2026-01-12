@@ -1,18 +1,20 @@
 package app
 
-import app.api.EmaProvider
 import app.scans.scanRoutes
 import app.vision.visionRoutes
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.cdimascio.dotenv.dotenv
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.callloging.CallLogging
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
@@ -31,7 +33,7 @@ import java.text.Normalizer
 import java.util.Locale
 
 // ===========================================================
-// JSON MAPPER (manual, no ContentNegotiation)
+// JSON MAPPER (manual, used in some endpoints)
 // ===========================================================
 private val jsonMapper = jacksonObjectMapper()
 
@@ -101,24 +103,22 @@ fun parseLocalMedicine(text: String): Triple<String?, String?, String?> {
 }
 
 // ===========================================================
+// GEMINI API KEY (Cloud Run friendly)
+// ===========================================================
+private val geminiKey: String? = System.getenv("GEMINI_API_KEY")?.trim()?.takeIf { it.isNotEmpty() }
+
+// Safe log (does not print the key)
+private fun logGeminiKeyPresence() {
+    println("GEMINI_API_KEY present? ${!geminiKey.isNullOrBlank()}")
+}
+
+// ===========================================================
 // GEMINI API CALL
 // ===========================================================
-private val dotenv = dotenv {
-    directory = ".."
-    filename = ".env"
-    ignoreIfMalformed = true
-    ignoreIfMissing = true
-}
-
-val geminiKey: String? = dotenv["GEMINI_API_KEY"] ?: System.getenv("GEMINI_API_KEY").also {
-    println("GEMINI_API_KEY from .env? ${dotenv["GEMINI_API_KEY"] != null}, from env? ${it != null}")
-}
-
 private val http = OkHttpClient()
 
 suspend fun callGeminiExtraction(ocrText: String): GeminiExtractedMedicine? {
     val key = geminiKey ?: return null
-    if (key.isBlank()) return null
 
     val prompt = """
         You read OCR text from a medicine box.
@@ -133,11 +133,6 @@ suspend fun callGeminiExtraction(ocrText: String): GeminiExtractedMedicine? {
           "strength": string or null,
           "form": string or null
         }
-
-        - brand: the trade name (e.g. "Augmentin").
-        - activeSubstance: active ingredient(s) in ENGLISH if possible.
-        - strength: full strength like "875/125 mg".
-        - form: the dosage form (tablets, capsules, syrup, etc.).
 
         Return ONLY the raw JSON object.
     """.trimIndent()
@@ -160,10 +155,19 @@ suspend fun callGeminiExtraction(ocrText: String): GeminiExtractedMedicine? {
             http.newCall(req).execute().use { resp ->
                 val body = resp.body?.string() ?: return@use null
                 val root = JSONObject(body)
+
+                // If Gemini returns an error payload, surface it
+                if (root.has("error")) {
+                    val err = root.getJSONObject("error")
+                    println("Gemini error: ${err.optString("message")}")
+                    return@use null
+                }
+
                 val cand = root.getJSONArray("candidates").getJSONObject(0)
                 val content = cand.getJSONObject("content")
                 val parts = content.getJSONArray("parts")
                 val text = parts.getJSONObject(0).getString("text").trim()
+
                 val clean = text.replace("```json", "").replace("```", "").trim()
                 val j = JSONObject(clean)
 
@@ -234,30 +238,42 @@ suspend fun searchOpenFda(brand: String?, substance: String?): List<RemoteMedici
         }
     }
 }
+
+// ===========================================================
+// KTOR MODULE
+// ===========================================================
 fun Application.medsModule() {
+
     install(CallLogging)
     install(CORS) { anyHost() }
+
+    install(ContentNegotiation) {
+        jackson {
+            registerModule(KotlinModule.Builder().build())
+            enable(SerializationFeature.INDENT_OUTPUT)
+        }
+    }
+
     install(StatusPages) {
-        exception<Throwable> { call, cause ->
-            cause.printStackTrace()
+        exception<Throwable> { call, t ->
+            t.printStackTrace()
             call.respond(
                 HttpStatusCode.InternalServerError,
                 mapOf(
                     "error" to "Unhandled exception",
-                    "message" to (cause.message ?: "no message"),
-                    "type" to (cause::class.qualifiedName ?: "unknown")
+                    "message" to (t.message ?: "no message"),
+                    "type" to (t::class.qualifiedName ?: "unknown")
                 )
             )
         }
     }
 
-
     routing {
-        // ✅ endpoints needed by your Android app
+        get("/") { call.respondText("OK") } // stop 404 noise
+        get("/health") { call.respondText("OK") }
+
         visionRoutes()
         scanRoutes()
-
-        get("/health") { call.respondText("OK") }
 
         get("/meds/parse-ocr") {
             val text = call.request.queryParameters["text"] ?: ""
@@ -279,78 +295,27 @@ fun Application.medsModule() {
                 ContentType.Application.Json
             )
         }
-
-        get("/meds/search") {
-            val brand = call.request.queryParameters["brand"]
-            val substance = call.request.queryParameters["substance"]
-
-            val openFdaResults = searchOpenFda(brand, substance)
-            val emaResults = if (!brand.isNullOrBlank()) {
-                runCatching { EmaProvider.searchByName(brand) }.getOrElse { emptyList() }
-            } else emptyList()
-
-            val response = MedSearchResponse(
-                brandQuery = brand,
-                substanceQuery = substance,
-                results = openFdaResults + emaResults
-            )
-
-            call.respondText(
-                jsonMapper.writeValueAsString(response),
-                ContentType.Application.Json
-            )
-        }
-
-        get("/meds/resolve-ocr") {
-            val text = call.request.queryParameters["text"] ?: ""
-
-            val normalized = normalizeOcrText(text)
-            val (localBrand, localStrength, localForm) = parseLocalMedicine(normalized)
-            val gemini = callGeminiExtraction(text)
-
-            val searchBrand = gemini?.brand?.takeIf { it.isNotBlank() } ?: localBrand
-            val searchSubstance = gemini?.activeSubstance?.takeIf { it.isNotBlank() }
-
-            val results = searchOpenFda(searchBrand, searchSubstance)
-
-            val response = ResolveOcrResponse(
-                rawText = text,
-                normalizedText = normalized,
-                localBrandGuess = localBrand,
-                localStrengthGuess = localStrength,
-                localFormGuess = localForm,
-                gemini = gemini,
-                searchBrandQuery = searchBrand,
-                searchSubstanceQuery = searchSubstance,
-                results = results
-            )
-
-            call.respondText(
-                jsonMapper.writeValueAsString(response),
-                ContentType.Application.Json
-            )
-        }
     }
 }
+
 // ===========================================================
-// KTOR SERVER
+// MAIN
 // ===========================================================
 fun main() {
+    println("Working dir = " + java.io.File(".").absolutePath)
+    logGeminiKeyPresence()
+
     embeddedServer(
         Netty,
         host = "0.0.0.0",
         port = 8080,
         configure = {
-            // Helps prevent premature connection closes under multipart uploads
             requestQueueLimit = 128
             runningLimit = 128
             callGroupSize = 16
             workerGroupSize = 16
         }
     ) {
-        this.medsModule()
+        medsModule()
     }.start(wait = true)
 }
-
-
-

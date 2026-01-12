@@ -1,5 +1,10 @@
 @file:Suppress("DEPRECATION")
 
+
+import java.io.FileInputStream
+import java.util.Properties
+
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -9,7 +14,7 @@ plugins {
 
 android {
     namespace = "com.example.healthguard"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.healthguard"
@@ -18,6 +23,18 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val secretsFile = rootProject.file("secrets.properties")
+        val secrets = Properties()
+        if (secretsFile.exists()) {
+            FileInputStream(secretsFile).use { fis ->
+                secrets.load(fis)
+            }
+        }
+        val geminiKey = secrets.getProperty("GEMINI_API_KEY", "")
+
+        // Expose to BuildConfig
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
     }
 
     buildTypes {
@@ -39,7 +56,9 @@ android {
         jvmTarget = "17"
         freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
     }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -70,6 +89,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.8.3")
     implementation(libs.firebase.dataconnect)
+    implementation(libs.generativeai)
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-tooling-preview")
 
@@ -80,7 +100,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
-    implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.14")
+    implementation(libs.logging.interceptor.v500alpha14)
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
     implementation("com.squareup.okhttp3:okhttp:5.2.1")
 
@@ -103,5 +123,7 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    implementation(libs.converter.scalars)
 }
 

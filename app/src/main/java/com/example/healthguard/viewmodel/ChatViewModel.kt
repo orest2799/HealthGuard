@@ -1,4 +1,4 @@
-package com.example.healthguard.presentation.chat
+package com.example.healthguard.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel

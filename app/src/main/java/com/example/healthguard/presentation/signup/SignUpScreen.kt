@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,8 +55,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.healthguard.R
-import com.example.healthguard.UserProfile
-import com.example.healthguard.UserViewModel
+import com.example.healthguard.viewmodel.UserProfile
+import com.example.healthguard.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.database.FirebaseDatabase
@@ -131,7 +133,6 @@ fun SignUpScreen(
         }
 
         if (birthday.isBlank()) {
-            // Optional: make birthday required; if not, remove this.
             birthdayErr = "Please select your birthday"; ok = false
         }
 
@@ -160,7 +161,9 @@ fun SignUpScreen(
         Image(
             painter = painterResource(id = R.drawable.healthguard_icon1),
             contentDescription = "HealthGuard Logo",
-            modifier = Modifier.size(80.dp)
+            modifier = Modifier
+                .fillMaxWidth(0.5f)
+                .aspectRatio(1f)
         )
         Spacer(Modifier.height(16.dp))
 
@@ -174,71 +177,115 @@ fun SignUpScreen(
 
         Spacer(Modifier.height(24.dp))
 
+        // First Name
         OutlinedTextField(
             value = firstName,
             onValueChange = { firstName = it; firstNameErr = null },
             label = { Text("First Name") },
             isError = firstNameErr != null,
             supportingText = { if (firstNameErr != null) Text(firstNameErr!!) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = blue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
 
+        // Last Name
         OutlinedTextField(
             value = lastName,
             onValueChange = { lastName = it; lastNameErr = null },
             label = { Text("Last Name") },
             isError = lastNameErr != null,
             supportingText = { if (lastNameErr != null) Text(lastNameErr!!) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = blue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
 
+        // Email
         OutlinedTextField(
             value = email,
             onValueChange = { email = it; emailErr = null },
             label = { Text("Email") },
             isError = emailErr != null,
             supportingText = { if (emailErr != null) Text(emailErr!!) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = blue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
 
-        // Birthday: readOnly + clickable with a calendar icon
+        // Birthday
         OutlinedTextField(
             value = birthday,
             onValueChange = {},
             readOnly = true,
             label = { Text("Birthday") },
             trailingIcon = {
-                IconButton(onClick = showDatePicker) { Icon(Icons.Default.DateRange, null) }
+                IconButton(onClick = showDatePicker) {
+                    Icon(Icons.Default.DateRange, null, tint = blue)
+                }
             },
             isError = birthdayErr != null,
             supportingText = { if (birthdayErr != null) Text(birthdayErr!!) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
                 .clickable { showDatePicker() },
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Black,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = blue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
 
+        // Password
         OutlinedTextField(
             value = password,
             onValueChange = { password = it; passwordErr = null },
@@ -247,15 +294,25 @@ fun SignUpScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             isError = passwordErr != null,
             supportingText = { if (passwordErr != null) Text(passwordErr!!) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = blue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
 
+        // Confirm Password
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it; confirmErr = null },
@@ -264,11 +321,20 @@ fun SignUpScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             isError = confirmErr != null,
             supportingText = { if (confirmErr != null) Text(confirmErr!!) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = blue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(20.dp))
@@ -288,7 +354,6 @@ fun SignUpScreen(
                                 birthday = birthday,
                                 email = cleanEmail
                             )
-                            // Save to DB and update VM
                             db.child("users").child(uid).setValue(profile)
                                 .addOnSuccessListener {
                                     userViewModel.setUserProfile(profile)
@@ -296,7 +361,6 @@ fun SignUpScreen(
                                     Toast.makeText(context, "Account created", Toast.LENGTH_SHORT).show()
                                 }
                                 .addOnFailureListener {
-                                    // Even if DB write fails, user is created; you can retry later
                                     userViewModel.setUserProfile(profile)
                                     userViewModel.markSignedIn()
                                 }
@@ -317,12 +381,11 @@ fun SignUpScreen(
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = blue)
         ) {
-            Text("Sign Up")
+            Text("Sign Up", color = Color.White)
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // Google sign-up/sign-in uses the same flow; delegate to Activity
         OutlinedButton(
             onClick = onGoogleSignIn,
             modifier = Modifier
@@ -352,14 +415,3 @@ fun SignUpScreen(
         Spacer(Modifier.height(24.dp))
     }
 }
-
-
-
-
-
-
-
-
-
-
-

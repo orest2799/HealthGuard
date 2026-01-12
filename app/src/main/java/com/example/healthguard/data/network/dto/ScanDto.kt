@@ -5,8 +5,8 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class MedicineScanRequest(
-    @Json(name = "ocr_text")     val ocr_text: String,
-    @Json(name = "image_base64") val image_base64: String? = null
+    @Json(name = "ocr_text")     val ocrText: String,
+    @Json(name = "image_base64") val imageBase64: String? = null
 )
 
 @JsonClass(generateAdapter = true)

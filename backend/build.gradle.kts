@@ -1,21 +1,30 @@
 plugins {
     kotlin("jvm")
-    application
-   // id("com.github.johnrengelman.shadow")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 repositories {
     mavenCentral()
-    google()
 }
 
-kotlin { jvmToolchain(17) }
+kotlin {
+    jvmToolchain(17)
+}
 
-application {
-    mainClass.set("app.ServerKt")
+tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>().configureEach {
+    archiveClassifier.set("all")
+    manifest {
+        attributes(mapOf("Main-Class" to "app.MainKt"))
+    }
+    mergeServiceFiles()
+}
+
+tasks.named("build") {
+    dependsOn("shadowJar")
 }
 
 dependencies {
+    // Ktor server
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.content.negotiation)
@@ -26,18 +35,36 @@ dependencies {
     implementation(libs.ktor.server.auto.head.response)
     implementation(libs.ktor.server.compression)
     implementation(libs.ktor.server.default.headers)
+
+    // JSON/Jackson
+    implementation(libs.jackson.module.kotlin)
+    implementation(libs.json)
+
+    // HTTP client (Gemini + any calls)
+    implementation(libs.okhttp)
+
+    // Google Cloud Vision (keep ONE)
+    implementation(libs.google.cloud.vision.v3780)
+
+    // Firestore (if you really use it)
     implementation(libs.google.cloud.firestore)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.core)
+
+    // Logging
+    implementation(libs.logback.classic)
+
+    // HTML parsing (keep ONE)
+    implementation(libs.jsoup)
+
+    // If you really use these in backend:
+    implementation(libs.kmongo.coroutine)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.java)
     implementation(libs.ktor.client.content.negotiation)
-
-    implementation(libs.jackson.module.kotlin)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.jsoup)
-    implementation(libs.logback.classic)
     implementation(libs.dotenv.kotlin)
-    // only if actually used in backend:
-     implementation(libs.okhttp)
-     implementation(libs.json)
-     implementation(libs.google.cloud.vision)
-}
 
+    testImplementation(kotlin("test"))
+}

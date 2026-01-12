@@ -1,4 +1,4 @@
-package com.example.healthguard
+package com.example.healthguard.viewmodel
 
 // NEW: imports for backend calls
 import android.util.Log

@@ -16,7 +16,7 @@ object MedExtractionRepo {
         val data = mapOf(
             "userId" to userId,
             "ocrId" to ocrId,
-            "meds" to meds, // Jackson will serialize your Kotlin data class
+            "meds" to meds,
             "createdAt" to Timestamp.now()
         )
         doc.set(data).get()

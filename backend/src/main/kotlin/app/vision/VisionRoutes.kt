@@ -4,6 +4,7 @@ import com.google.cloud.vision.v1.AnnotateImageRequest
 import com.google.cloud.vision.v1.Feature
 import com.google.cloud.vision.v1.Image
 import com.google.cloud.vision.v1.ImageAnnotatorClient
+import com.google.cloud.vision.v1.ImageContext
 import com.google.protobuf.ByteString
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -17,98 +18,106 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+
+// ✅ Create once per JVM (recommended for Google clients)
+private val visionClient: ImageAnnotatorClient by lazy {
+    ImageAnnotatorClient.create()
+}
 
 fun Route.visionRoutes() {
     route("/vision") {
-
-        // POST /vision/annotate  (multipart; field name: "file")
         post("/annotate") {
-            val multipart = call.receiveMultipart()
-
-            var imageBytes: ByteArray? = null
+            // Always return JSON with at least "text"
             try {
-                multipart.forEachPart { part ->
-                    when (part) {
-                        is PartData.FileItem -> {
-                            // Read the file bytes off the blocking InputStream on IO dispatcher
-                            imageBytes = withContext(Dispatchers.IO) {
-                                part.streamProvider().readBytes()
+                val multipart = call.receiveMultipart()
+                var imageBytes: ByteArray? = null
+
+                // --- Read multipart file ---
+                try {
+                    multipart.forEachPart { part ->
+                        try {
+                            if (part is PartData.FileItem && (part.name == "file" || part.name == "image")) {
+                                imageBytes = withContext(Dispatchers.IO) {
+                                    part.streamProvider().readBytes()
+                                }
                             }
+                        } finally {
+                            part.dispose()
                         }
-                        else -> Unit
                     }
-                    part.dispose()
+                } catch (t: Throwable) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf(
+                            "text" to "",
+                            "error" to "Failed to read multipart data",
+                            "message" to (t.message ?: "no message")
+                        )
+                    )
+                    return@post
                 }
-            } catch (t: Throwable) {
-                call.respond(
-                    HttpStatusCode.BadRequest,
-                    mapOf("error" to "Failed to read multipart data: ${t.message}")
-                )
-                return@post
-            }
 
-            if (imageBytes == null) {
-                call.respond(
-                    HttpStatusCode.BadRequest,
-                    mapOf("error" to "No file received")
-                )
-                return@post
-            }
+                if (imageBytes == null || imageBytes!!.isEmpty()) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        mapOf("text" to "", "error" to "No file received")
+                    )
+                    return@post
+                }
 
-            // ---- Google Cloud Vision OCR ----
-            val img = Image.newBuilder()
-                .setContent(ByteString.copyFrom(imageBytes))
-                .build()
+                // --- Build Vision request ---
+                val img = Image.newBuilder()
+                    .setContent(ByteString.copyFrom(imageBytes))
+                    .build()
 
-            // TEXT_DETECTION works well for labels; use DOCUMENT_TEXT_DETECTION for documents
-            val feature = Feature.newBuilder()
-                .setType(Feature.Type.TEXT_DETECTION)
-                .build()
+                val request = AnnotateImageRequest.newBuilder()
+                    .setImage(img)
+                    .addFeatures(
+                        Feature.newBuilder()
+                            .setType(Feature.Type.DOCUMENT_TEXT_DETECTION)
+                            .build()
+                    )
+                    .setImageContext(
+                        ImageContext.newBuilder()
+                            .addLanguageHints("el")
+                            .addLanguageHints("en")
+                            .build()
+                    )
+                    .build()
 
-            val request = AnnotateImageRequest.newBuilder()
-                .addFeatures(feature)
-                .setImage(img)
-                .build()
-
-            val fullText: String
-            val words = mutableListOf<String>()
-
-            try {
-                withContext(Dispatchers.IO) {
-                    ImageAnnotatorClient.create().use { client ->
-                        val resp = client.batchAnnotateImages(listOf(request)).responsesList.first()
+                // --- Call Vision with timeout ---
+                val fullText: String = withTimeout(20_000) {
+                    withContext(Dispatchers.IO) {
+                        val resp = visionClient.batchAnnotateImages(listOf(request)).responsesList.firstOrNull()
+                            ?: throw IllegalStateException("Empty Vision response")
 
                         if (resp.hasError()) {
-                            throw IllegalStateException(resp.error.message)
+                            throw IllegalStateException("Vision API error: ${resp.error.message}")
                         }
 
-                        // Full page text
-                        fullText = resp.fullTextAnnotation?.text ?: ""
-
-                        // Individual tokens (skip the first which repeats full text)
-                        if (resp.textAnnotationsCount > 1) {
-                            resp.textAnnotationsList.drop(1).forEach { words += it.description }
-                        }
+                        resp.fullTextAnnotation?.text.orEmpty()
                     }
                 }
+
+                call.respond(
+                    HttpStatusCode.OK,
+                    mapOf(
+                        "text" to fullText
+                    )
+                )
             } catch (t: Throwable) {
+                t.printStackTrace()
+                // ✅ Never let the socket close without a JSON response
                 call.respond(
                     HttpStatusCode.InternalServerError,
-                    mapOf("error" to "Vision API error: ${t.message}")
+                    mapOf(
+                        "text" to "",
+                        "error" to "Vision route failed",
+                        "message" to (t.message ?: "no message")
+                    )
                 )
-                return@post
             }
-
-            // Response shape your Android client (VisionDto) expects
-            call.respond(
-                mapOf(
-                    "text" to fullText,      // primary field your app shows
-                    "fullText" to fullText,  // backup
-                    "words" to words         // optional tokens
-                )
-            )
         }
     }
 }
-
-

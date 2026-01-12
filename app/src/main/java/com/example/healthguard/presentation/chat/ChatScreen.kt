@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.healthguard.data.network.dto.ChatSource
+import com.example.healthguard.viewmodel.ChatViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,12 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,7 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.healthguard.R
-import com.example.healthguard.UserViewModel
+import com.example.healthguard.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 
@@ -68,12 +71,17 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var passError by remember { mutableStateOf<String?>(null) }
 
+    // Forgot password dialog state
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
+    var resetEmailError by remember { mutableStateOf<String?>(null) }
+
     val auth = remember { FirebaseAuth.getInstance() }
     val db = remember { FirebaseDatabase.getInstance().reference }
     val scrollState = rememberScrollState()
     val lightBlue = colorResource(id = R.color.blue)
 
-    // ✅ Observe signed-in state; navigate when it turns true
+
     val isSignedIn by userViewModel.isSignedIn.collectAsStateWithLifecycle()
     LaunchedEffect(isSignedIn) {
         if (isSignedIn) {
@@ -93,6 +101,109 @@ fun LoginScreen(
         }
         if (password.isBlank()) { passError = "Password required"; ok = false }
         return ok
+    }
+
+    // Forgot Password Dialog
+    if (showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showForgotPasswordDialog = false
+                resetEmail = ""
+                resetEmailError = null
+            },
+            title = {
+                Text(
+                    "Reset Password",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "Enter your email address and we'll send you a link to reset your password.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = resetEmail,
+                        onValueChange = {
+                            resetEmail = it
+                            resetEmailError = null
+                        },
+                        label = { Text("Email") },
+                        leadingIcon = { Icon(Icons.Default.Email, null) },
+                        isError = resetEmailError != null,
+                        supportingText = { if (resetEmailError != null) Text(resetEmailError!!) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            cursorColor = Color.Black,
+                            focusedBorderColor = lightBlue,
+                            unfocusedBorderColor = Color.Gray
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        resetEmailError = null
+
+                        // Validate email
+                        if (resetEmail.isBlank()) {
+                            resetEmailError = "Email required"
+                            return@Button
+                        }
+                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches()) {
+                            resetEmailError = "Enter a valid email"
+                            return@Button
+                        }
+
+                        // Send password reset email
+                        auth.sendPasswordResetEmail(resetEmail.trim())
+                            .addOnSuccessListener {
+                                Toast.makeText(
+                                    context,
+                                    "Password reset email sent! Check your inbox.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                showForgotPasswordDialog = false
+                                resetEmail = ""
+                                resetEmailError = null
+                            }
+                            .addOnFailureListener { e ->
+                                val errorMsg = when {
+                                    e.message?.contains("no user record", ignoreCase = true) == true ->
+                                        "No account found with this email"
+                                    else -> e.localizedMessage ?: "Failed to send reset email"
+                                }
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                            }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = lightBlue)
+                ) {
+                    Text("Send Reset Link", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showForgotPasswordDialog = false
+                        resetEmail = ""
+                        resetEmailError = null
+                    }
+                ) {
+                    Text("Cancel", color = lightBlue)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 
     Column(
@@ -139,7 +250,18 @@ fun LoginScreen(
             supportingText = { if (emailError != null) Text(emailError!!) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = lightBlue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         Spacer(Modifier.height(12.dp))
@@ -154,10 +276,37 @@ fun LoginScreen(
             supportingText = { if (passError != null) Text(passError!!) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                cursorColor = Color.Black,
+                focusedBorderColor = lightBlue,
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
-        Spacer(Modifier.height(20.dp))
+        // Forgot Password Link
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            TextButton(onClick = { showForgotPasswordDialog = true }) {
+                Text(
+                    "Forgot Password?",
+                    color = lightBlue,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Spacer(Modifier.height(5.dp))
 
         Button(
             onClick = {
@@ -186,7 +335,7 @@ fun LoginScreen(
                 .height(52.dp),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = lightBlue)
-        ) { Text("Login") }
+        ) { Text("Login", color = Color.White) }
 
         Spacer(Modifier.height(20.dp))
 
@@ -211,17 +360,13 @@ fun LoginScreen(
             Text("Continue with Google", color = Color(0xFF3C4043), fontWeight = FontWeight.Medium)
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
 
         TextButton(onClick = { navController.navigate("signup") }) {
             Text(buildAnnotatedString {
-                append("Don’t have an account? ")
+                append("Don't have an account? ")
                 withStyle(SpanStyle(color = lightBlue)) { append("Sign Up") }
             })
         }
     }
 }
-
-
-
-

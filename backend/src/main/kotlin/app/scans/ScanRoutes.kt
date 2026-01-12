@@ -1,11 +1,12 @@
-// backend/src/main/kotlin/app/scans/ScanRoutes.kt
+
 package app.scans
 
-import app.meds.EmaProvider
+
+
 import app.meds.MedProvider
 import app.meds.MedQuery
 import app.meds.MedRecord
-import app.meds.OpenFdaProvider
+
 import app.meds.extractDosages
 import app.meds.generateCandidates
 import app.meds.scoreRecord
@@ -31,7 +32,6 @@ data class ScanRequest(
     @param:JsonProperty("image_base64") val imageBase64: String? = null
 )
 
-
 data class ScanSavedResponse(
     val id: String,
     val saved: Boolean
@@ -42,11 +42,11 @@ private val mapper = ObjectMapper()
     .enable(SerializationFeature.INDENT_OUTPUT)
 
 fun Route.scanRoutes() {
-    val http = OkHttpClient()
-    val providers: List<MedProvider> = listOf(
-        EmaProvider(),
-        OpenFdaProvider(http)
-    )
+    val http = OkHttpClient() // currently unused but kept if you add providers later
+
+    // 🔧 For now, no MedProviders wired here. If you still have an old provider
+    // that implements MedProvider (e.g. GalinosProvider), put it in this list.
+    val providers: List<MedProvider> = emptyList()
 
     post("/api/vision/scan") {
         val body = call.receive<ScanRequest>()

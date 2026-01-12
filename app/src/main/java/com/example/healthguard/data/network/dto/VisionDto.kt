@@ -6,6 +6,6 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class VisionDto(
     @Json(name = "text") val text: String? = null,
-    @Json(name = "fullText") val fullText: String? = null,
-    @Json(name = "words") val words: List<String>? = null
+    @Json(name = "error") val error: String? = null,
+    @Json(name = "message") val message: String? = null
 )

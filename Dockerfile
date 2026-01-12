@@ -5,24 +5,22 @@ WORKDIR /workspace
 # Copy Gradle wrapper + settings
 COPY gradlew gradlew.bat settings.gradle.kts ./
 COPY gradle gradle
-
-# Ensure gradlew is executable (and fix CRLF if copied from Windows)
 RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
 
-# Copy project sources (multi-module safe)
+# Copy only the backend module (multi-module safe)
 COPY backend backend
 
-# Build backend only (skip tests to speed up)
-RUN ./gradlew :backend:installDist --no-daemon -x test
+# Build fat jar for the backend module
+RUN ./gradlew :backend:shadowJar --no-daemon -x test
 
 # ---------- Runtime stage ----------
 FROM eclipse-temurin:17-jre
 ENV PORT=8080
 WORKDIR /app
 
-# Copy self-contained distribution produced by installDist
-COPY --from=build /workspace/backend/build/install/backend /app
+# Copy the fat jar
+COPY --from=build /workspace/backend/build/libs/backend-all.jar /app/app.jar
 
-# Cloud Run will call $PORT; Ktor must bind 0.0.0.0:$PORT (your main() already does)
+# Cloud Run will pass $PORT; your main() already binds 0.0.0.0:$PORT
 EXPOSE 8080
-CMD ["./bin/backend"]
+CMD ["java","-jar","/app/app.jar"]

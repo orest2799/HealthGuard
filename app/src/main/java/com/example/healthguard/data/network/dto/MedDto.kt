@@ -30,3 +30,10 @@ data class MedSearchResponse(
     @Json(name = "lang")    val lang: String? = null,
     @Json(name = "results") val results: List<MedRecord> = emptyList()
 )
+data class GalinosResponse(
+    @Json(name = "query") val query: String,
+    @Json(name = "medicine_name") val medicineName: String? = null,
+    @Json(name = "url") val url: String? = null,
+    @Json(name = "sections") val sections: Map<String, String>? = null,
+    @Json(name = "success") val success: Boolean = false
+)

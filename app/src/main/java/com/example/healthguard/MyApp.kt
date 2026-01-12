@@ -14,9 +14,9 @@ import androidx.navigation.navArgument
 import com.example.healthguard.presentation.camera.CameraScreen
 import com.example.healthguard.presentation.camera.GalleryScreen
 import com.example.healthguard.presentation.chat.ChatScreen
-import com.example.healthguard.presentation.chat.ChatViewModel
+import com.example.healthguard.viewmodel.ChatViewModel
 import com.example.healthguard.presentation.chat.MatchBubbleOverlay
-import com.example.healthguard.presentation.chat.MatchOverlayViewModel
+import com.example.healthguard.viewmodel.MatchOverlayViewModel
 import com.example.healthguard.presentation.home.HomeScreen
 import com.example.healthguard.presentation.login.LoginScreen
 import com.example.healthguard.presentation.medication.PillsScreen
@@ -24,7 +24,8 @@ import com.example.healthguard.presentation.signup.SignUpScreen
 import com.example.healthguard.presentation.splash.SplashScreen
 import com.example.healthguard.presentation.stats.StatsScreen
 import com.example.healthguard.ui.theme.AppTheme
-import com.example.healthguard.ui.theme.ThemeViewModel
+import com.example.healthguard.viewmodel.ThemeViewModel
+import com.example.healthguard.viewmodel.UserViewModel
 
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable

@@ -16,7 +16,6 @@ object OcrRepo {
             "text" to text,
             "createdAt" to Timestamp.now()
         )
-        // blocking here is fine for a quick start (Firestore Java SDK is async)
         doc.set(data).get()
         return doc.id
     }

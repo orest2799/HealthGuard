@@ -8,7 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
-import com.example.healthguard.UserViewModel
+import com.example.healthguard.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
