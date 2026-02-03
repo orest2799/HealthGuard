@@ -106,14 +106,7 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    // ---------------------------
-    //  BACKEND CALLS (NEW)
-    // ---------------------------
 
-    /**
-     * Simple health ping (no auth). Uses your Retrofit service if available.
-     * If you haven't added ApiClient.health yet, the "fallback" OkHttp code below still works.
-     */
     fun pingBackend() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -139,10 +132,7 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Authenticated health ping: attaches Firebase ID token as Bearer.
-     * Use this when your backend enforces authentication.
-     */
+
     fun pingBackendSecure() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -173,7 +163,7 @@ class UserViewModel : ViewModel() {
 
         val localEmulator = "http://10.0.2.2:8080/"
         val localDevice = "http://192.168.1.146:8080/"  // ← UPDATE if your computer IP is different
-        val prodUrl = "https://healthguard-backend-192038493071.europe-west8.run.app/"
+        val prodUrl = "https://medicine-backend-192038493071.us-central1.run.app/"
 
         return when {
             !useLocal -> prodUrl

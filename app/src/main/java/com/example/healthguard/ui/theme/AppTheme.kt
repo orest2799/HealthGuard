@@ -7,8 +7,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 @Composable
 fun AppTheme(
@@ -52,20 +52,21 @@ fun AppTheme(
     }
 
     val view = LocalView.current
-    val window = (view.context as? Activity)?.window
     SideEffect {
-        window?.statusBarColor = android.graphics.Color.TRANSPARENT
+        val window = (view.context as? Activity)?.window
         if (window != null) {
+
             WindowCompat.setDecorFitsSystemWindows(window, false)
+
+
+            val controller = WindowInsetsControllerCompat(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
         }
-        ViewCompat.getWindowInsetsController(view)?.isAppearanceLightStatusBars = !darkTheme
     }
-
-
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography, // defined below
+        typography = AppTypography,
         content = content
     )
 }

@@ -14,7 +14,7 @@ fun scoreRecord(
         .map { it.lowercase() }
         .forEach { if (it in ocrTokens) bump(1.0) }
 
-    // ✅ substances list (if present)
+
     r.substances.forEach { sub ->
         sub.split(Regex("\\s+"))
             .map { it.lowercase() }

@@ -6,27 +6,37 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
-    <!-- Camera permission -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Storage permissions - properly scoped for different API levels -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"
         tools:ignore="ScopedStorage" />
-
-    <!-- Media permissions for Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <!-- Foreground service with type declaration for Android 14+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    <!-- Activity recognition -->
-    <uses-permission android:name="android.per mission.ACTIVITY_RECOGNITION" />
 
-    <!-- Internet -->
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -39,10 +49,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.HealthGuard"
-        android:usesCleartextTraffic="true"
-        tools:targetApi="33">
+        android:usesCleartextTraffic="true">
 
-        <!-- Suppress MIUI exception logging -->
         <meta-data
             android:name="MiuiExceptionLog"
             android:value="false" />
@@ -50,6 +58,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.HealthGuard">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -57,7 +66,10 @@
             </intent-filter>
         </activity>
 
-
+        <service
+            android:name=".presentation.camera.MedicineDataService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
 
     </application>
 

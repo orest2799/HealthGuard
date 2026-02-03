@@ -1,12 +1,10 @@
-
-package app.scans
+package app.routes
 
 
 
 import app.meds.MedProvider
 import app.meds.MedQuery
 import app.meds.MedRecord
-
 import app.meds.extractDosages
 import app.meds.generateCandidates
 import app.meds.scoreRecord

@@ -1,35 +1,34 @@
 package app.routes
 
+import app.services.GeminiService
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
-import io.ktor.server.request.receiveText
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
 fun Route.ocrRoutes() {
-    route("/meds") {
-        post("/parse-ocr") {
+    route("/ocr") {
+        post {
             try {
-                // read body as raw text (no JSON parsing yet)
-                val bodyText = call.receiveText()
+                // 1. Receive the raw image bytes
+                val imageBytes = call.receive<ByteArray>()
 
-                // send it back so we see exactly what arrived
-                call.respond(
-                    mapOf(
-                        "received" to bodyText
-                    )
-                )
+                // 2. Call GeminiService (ensure it returns MedicineOcrResult? now)
+                val result = GeminiService.processImage(imageBytes)
+
+                if (result != null) {
+                    // 3. Respond with the structured JSON object
+                    call.respond(result)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Gemini failed to parse image"))
+                }
             } catch (t: Throwable) {
                 t.printStackTrace()
                 call.respond(
                     HttpStatusCode.InternalServerError,
-                    mapOf(
-                        "error" to "Server error in /meds/parse-ocr",
-                        "message" to (t.message ?: "no message"),
-                        "exception" to t::class.qualifiedName
-                    )
+                    mapOf("error" to (t.message ?: "Unknown server error"))
                 )
             }
         }

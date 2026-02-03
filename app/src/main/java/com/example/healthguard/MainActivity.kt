@@ -1,16 +1,15 @@
 package com.example.healthguard
 
-// Credential Manager + Google ID
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.collectAsState
-import androidx.core.view.WindowCompat
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -28,6 +27,7 @@ import com.example.healthguard.viewmodel.UserProfile
 import com.example.healthguard.viewmodel.UserViewModel
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.FirebaseDatabase
@@ -41,19 +41,18 @@ class MainActivity : ComponentActivity() {
 
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
+        // This is safe for API 26+ (it handles versions internally)
+        enableEdgeToEdge()
+
         super.onCreate(savedInstanceState)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-
         credentialManager = CredentialManager.create(this)
-
-        // ✅ TEST ALL ENDPOINTS
         testAllEndpoints()
 
         setContent {
             val isDarkTheme = themeViewModel.isDarkTheme.collectAsState().value
             AppTheme(darkTheme = isDarkTheme) {
+                // Ensure MyApp does not have a @RequiresApi(28) tag on its definition
                 MyApp(
                     userViewModel = userViewModel,
                     themeViewModel = themeViewModel,
@@ -65,140 +64,70 @@ class MainActivity : ComponentActivity() {
 
     /**
      * 🧪 COMPREHENSIVE BACKEND TEST
-     * Tests all endpoints: health, meds, scan, chat
+     * Verifies connectivity to Cloud Run production URL
      */
     private fun testAllEndpoints() {
         lifecycleScope.launch {
             val results = mutableListOf<String>()
+            // FIX 2: Point logs to your actual Cloud Run URL
+            val prodUrl = "https://medicine-backend-192038493071.us-central1.run.app/"
 
             try {
                 Log.d("TEST", "═══════════════════════════════════════")
-                Log.d("TEST", "🧪 TESTING ALL BACKEND ENDPOINTS")
-                Log.d("TEST", "📍 Backend: http://10.0.2.2:8080/")
+                Log.d("TEST", "🧪 TESTING CLOUD RUN BACKEND")
+                Log.d("TEST", "📍 URL: $prodUrl")
                 Log.d("TEST", "═══════════════════════════════════════")
 
-                // ========================================
-                // TEST 1: HEALTH CHECK
-                // ========================================
-                Log.d("TEST", "")
-                Log.d("TEST", "1️⃣ Testing Health Endpoint...")
-                Log.d("TEST", "   GET /health")
-
+                // TEST 1: HEALTH
                 try {
                     val health = ApiClient.health.getHealth()
                     if (health.isSuccessful) {
-                        val body = health.body() ?: "Empty"
-                        Log.d("TEST", "   ✅ SUCCESS: $body")
-                        Log.d("TEST", "   Status: ${health.code()}")
+                        Log.d("TEST", "1️⃣ Health: ✅ OK (${health.code()})")
                         results.add("✅ Health: OK")
                     } else {
-                        Log.e("TEST", "   ❌ FAILED: ${health.code()}")
+                        Log.e("TEST", "1️⃣ Health: ❌ FAILED (${health.code()})")
                         results.add("❌ Health: ${health.code()}")
                     }
                 } catch (e: Exception) {
-                    Log.e("TEST", "   ❌ ERROR: ${e.message}", e)
-                    results.add("❌ Health: ${e.message}")
+                    results.add("❌ Health: Error")
                 }
 
-                // ========================================
                 // TEST 2: MEDICINE SEARCH
-                // ========================================
-                Log.d("TEST", "")
-                Log.d("TEST", "2️⃣ Testing Medicine Search...")
-                Log.d("TEST", "   GET /meds/search?q=aspirin")
-
                 try {
                     val meds = ApiClient.med.search("aspirin")
-                    Log.d("TEST", "   ✅ SUCCESS: Found ${meds.results.size} medicines")
-                    Log.d("TEST", "   Query: ${meds.query}")
-                    if (meds.results.isNotEmpty()) {
-                        Log.d("TEST", "   First result: ${meds.results[0].brand}")
-                    }
-                    results.add("✅ Med Search: ${meds.results.size} results")
+                    Log.d("TEST", "2️⃣ Med Search: ✅ Found ${meds.results.size} results")
+                    results.add("✅ Med Search: OK")
                 } catch (e: Exception) {
-                    Log.e("TEST", "   ❌ ERROR: ${e.message}", e)
-                    results.add("❌ Med Search: ${e.message}")
+                    results.add("❌ Med Search: Error")
                 }
 
-                // ========================================
-                // TEST 3: SCAN SAVE
-                // ========================================
-                Log.d("TEST", "")
-                Log.d("TEST", "3️⃣ Testing Scan Save...")
-                Log.d("TEST", "   POST /api/vision/scan")
-
+                // TEST 3: SCAN (Note: using scanMedicine logic)
                 try {
-                    val scanReq = MedicineScanRequest(
-                        ocrText = "Panadol 500mg tablets",
-                        imageBase64 = null
-                    )
-                    val scanResult = ApiClient.scan.saveScan(scanReq)
-                    Log.d("TEST", "   ✅ SUCCESS: Scan saved!")
-                    Log.d("TEST", "   Scan ID: ${scanResult.id}")
-                    Log.d("TEST", "   Saved: ${scanResult.saved}")
-                    results.add("✅ Scan: ${scanResult.id}")
+                    val scanReq = MedicineScanRequest(ocrText = "Test Scan", imageBase64 = null)
+                    ApiClient.scan.saveScan(scanReq)
+                    Log.d("TEST", "3️⃣ Scan Save: ✅ OK")
+                    results.add("✅ Scan Save: OK")
                 } catch (e: Exception) {
-                    Log.e("TEST", "   ❌ ERROR: ${e.message}", e)
-                    results.add("❌ Scan: ${e.message}")
+                    results.add("❌ Scan Save: Error")
                 }
 
-                // ========================================
                 // TEST 4: CHAT
-                // ========================================
-                Log.d("TEST", "")
-                Log.d("TEST", "4️⃣ Testing Chat...")
-                Log.d("TEST", "   POST /chat")
-
                 try {
-                    val chatReq = ChatRequest(text = "What is aspirin?")
-                    val chatResp = ApiClient.chat.chat(chatReq)
-                    Log.d("TEST", "   ✅ SUCCESS: Got chat response")
-                    Log.d("TEST", "   Session ID: ${chatResp.sessionId}")
-                    Log.d("TEST", "   Reply length: ${chatResp.reply.length} chars")
-                    Log.d("TEST", "   Reply preview: ${chatResp.reply.take(100)}...")
-                    results.add("✅ Chat: Working")
+                    val chatResp = ApiClient.chat.chat(ChatRequest(text = "Hello"))
+                    Log.d("TEST", "4️⃣ Chat: ✅ OK. Reply: ${chatResp.reply.take(20)}...")
+                    results.add("✅ Chat: OK")
                 } catch (e: Exception) {
-                    Log.e("TEST", "   ❌ ERROR: ${e.message}", e)
-                    results.add("❌ Chat: ${e.message}")
+                    results.add("❌ Chat: Error")
                 }
 
-                // ========================================
-                // TEST 5: GALINOS (Optional - might fail)
-                // ========================================
-
-                // ========================================
-                // SUMMARY
-                // ========================================
-                Log.d("TEST", "")
-                Log.d("TEST", "═══════════════════════════════════════")
-                Log.d("TEST", "📊 TEST RESULTS SUMMARY")
-                Log.d("TEST", "═══════════════════════════════════════")
-                results.forEach { result ->
-                    Log.d("TEST", "   $result")
-                }
-                Log.d("TEST", "═══════════════════════════════════════")
-
-                // Show toast with summary
-                val successCount = results.count { it.startsWith("✅") }
-                val totalTests = 4 // Health, Meds, Scan, Chat (excluding Galinos)
-
+                // SUMMARY TOAST
+                val pass = results.count { it.startsWith("✅") }
                 runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Backend Tests: $successCount/$totalTests passed\nCheck Logcat for details",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(this@MainActivity, "Cloud Tests: $pass/4 Passed", Toast.LENGTH_LONG).show()
                 }
 
             } catch (e: Exception) {
-                Log.e("TEST", "❌ CRITICAL ERROR during testing", e)
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "❌ Testing failed: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                Log.e("TEST", "❌ Critical connection failure: ${e.message}")
             }
         }
     }
@@ -261,21 +190,40 @@ class MainActivity : ComponentActivity() {
         FirebaseAuth.getInstance().signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    FirebaseAuth.getInstance().currentUser?.let { user ->
-                        val uid = user.uid
+                    val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+                    // Safety Check: Ensure user exists
+                    if (firebaseUser != null) {
+                        val uid = firebaseUser.uid
                         val db = FirebaseDatabase.getInstance().reference
+
+                        // Parse names safely
+                        val nameParts = firebaseUser.displayName?.split(" ")
                         val profile = UserProfile(
-                            firstName = user.displayName?.split(" ")?.firstOrNull().orEmpty(),
-                            lastName = user.displayName?.split(" ")?.getOrNull(1).orEmpty(),
-                            email = user.email.orEmpty(),
+                            firstName = nameParts?.firstOrNull().orEmpty(),
+                            lastName = nameParts?.getOrNull(1).orEmpty(),
+                            email = firebaseUser.email.orEmpty(),
                             birthday = ""
                         )
+
+                        // Save to Realtime Database
                         db.child("users").child(uid).setValue(profile)
+                            .addOnSuccessListener {
+                                Log.d("AUTH", "User profile synced to Firebase")
+                            }
+
+                        // Update local ViewModel state
                         userViewModel.setUserProfile(profile)
-                        Toast.makeText(this, "Signed in with Google!", Toast.LENGTH_SHORT).show()
+
+                        Toast.makeText(
+                            this,
+                            "Signed in as ${profile.firstName}!",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 } else {
-                    Toast.makeText(this, "Google sign-in failed.", Toast.LENGTH_SHORT).show()
+                    Log.e("AUTH", "Firebase Auth Failed", task.exception)
+                    Toast.makeText(this, "Authentication failed.", Toast.LENGTH_SHORT).show()
                 }
             }
     }

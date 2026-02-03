@@ -8,7 +8,7 @@ import android.graphics.YuvImage
 import androidx.camera.core.ImageProxy
 import java.io.ByteArrayOutputStream
 
-fun ImageProxy.toBitmap(): Bitmap {
+fun ImageProxy.toBitmapCustom(): Bitmap {
     val yBuffer = planes[0].buffer
     val uBuffer = planes[1].buffer
     val vBuffer = planes[2].buffer

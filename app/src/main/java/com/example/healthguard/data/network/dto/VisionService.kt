@@ -1,12 +1,9 @@
-package com.example.healthguard.data.network.dto
-
-import okhttp3.MultipartBody
-import retrofit2.http.Multipart
+import com.example.healthguard.data.models.MedicineOcrResult //
+import okhttp3.RequestBody
+import retrofit2.http.Body
 import retrofit2.http.POST
-import retrofit2.http.Part
 
 interface VisionService {
-    @Multipart
-    @POST("vision/annotate")
-    suspend fun annotate(@Part file: MultipartBody.Part): VisionDto
+    @POST("ocr") // Matches backend route
+    suspend fun scanMedicine(@Body image: RequestBody): MedicineOcrResult //
 }

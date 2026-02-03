@@ -58,3 +58,6 @@ secretes.properties
 *.jpg
 *.png
 *.trace
+*.json
+*.jar
+backend/deploy/
