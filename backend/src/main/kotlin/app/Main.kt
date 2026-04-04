@@ -1,28 +1,72 @@
 package app
 
+
 import app.routes.chatRoutes
-import app.routes.ocrRoutes
 import app.routes.scanRoutes
+import app.routes.stepRoutes
 import app.routes.visionRoutes
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.jackson
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 
+private const val VERSION = "v2.1.2"
+
+//private const val PROJECT_ID = "healthguard-b443f"
+private fun resolvedProjectId(): String =
+    System.getenv("GOOGLE_CLOUD_PROJECT")
+        ?: System.getenv("GCLOUD_PROJECT")
+        ?: System.getenv("GCP_PROJECT")
+        ?: "unknown"
+
 fun main() {
-    // Το Cloud Run ορίζει τη θύρα μέσω της μεταβλητής PORT
-    val port = System.getenv("PORT")?.toInt() ?: 8080
-    embeddedServer(Netty, port = port, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
+    initFirebase()
+
+    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+    embeddedServer(
+        factory = Netty,
+        port = port,
+        host = "0.0.0.0",
+        module = Application::module
+    ).start(wait = true)
 }
+
+
+fun initFirebase() {
+    try {
+        if (FirebaseApp.getApps().isEmpty()) {
+
+            val credentials = GoogleCredentials.getApplicationDefault()
+
+            val options = FirebaseOptions.builder()
+                .setCredentials(credentials)
+                .setProjectId("healthguard-b443f")   // 🔥 ΤΟ ΣΗΜΑΝΤΙΚΟ
+                .build()
+
+            val app = FirebaseApp.initializeApp(options)
+
+            println("🔥 Firebase projectId from options: ${app.options.projectId}")
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        throw e
+    }
+}
+
+
+
 
 fun Application.module() {
 
@@ -33,52 +77,66 @@ fun Application.module() {
         }
     }
 
+    install(StatusPages) {
+        exception<IllegalArgumentException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("status" to "error", "message" to (cause.message ?: "Bad request"))
+            )
+        }
+
+        exception<Throwable> { call, cause ->
+            println("UNHANDLED ERROR: ${cause.message}")
+            cause.printStackTrace()
+            call.respond(
+                HttpStatusCode.InternalServerError,
+                mapOf("status" to "error", "message" to "Internal server error")
+            )
+        }
+    }
+
     routing {
-        // 1. Διόρθωση Health Check (Το Android ζητάει /health, όχι σκέτο /)
-        get("/health") {
-            call.respond(mapOf("status" to "healthy", "version" to "1.0.1"))
-        }
-
-        // Καλό είναι να κρατήσεις και το root
         get("/") {
-            call.respond(mapOf("message" to "Server is running"))
+            call.respond(mapOf("message" to "HealthGuard API is Live", "version" to VERSION))
         }
 
-        // 2. Οργάνωση των API routes για να αποφεύγονται τα 404
+        get("/health") {
+            call.respond(mapOf("status" to "healthy-$VERSION"))
+        }
+        get("/version") {
+            call.respond(
+                mapOf(
+                    "version" to VERSION,
+                    "projectId" to resolvedProjectId()
+                )
+            )
+        }
+
+
         route("/api") {
-            route("/vision") {
-                // Αν το Android καλεί /api/vision/scan, αυτό θα το πιάσει
-                visionRoutes()
-            }
+            scanRoutes()
+            visionRoutes()
             chatRoutes()
-        }
+            stepRoutes()
 
-        // 3. Προσθήκη του meds endpoint (για να μη βγάζει 404 στο aspirin)
-        route("/meds") {
-            get("/search") {
-                val query = call.parameters["q"] ?: "Unknown"
-
-                // Κατασκευή του Response σύμφωνα με το MedSearchResponse.kt
-                val response = mapOf(
-                    "query" to query,
-                    "lang" to "el",
-                    "results" to listOf(
+            route("/meds") {
+                get("/search") {
+                    val query = call.parameters["q"] ?: ""
+                    call.respond(
                         mapOf(
-                            "id" to "temp_123",
-                            "brand" to query,      // ΣΗΜΑΝΤΙΚΟ: Το Android θέλει "brand"
-                            "generic" to "N/A",    // ΣΗΜΑΝΤΙΚΟ: Το Android θέλει "generic"
-                            "summary" to "Αυτόματη αναγνώριση για το φάρμακο $query. Ρωτήστε τον Gemini για δοσολογία.",
-                            "score" to 1.0
+                            "query" to query,
+                            "results" to listOf(
+                                mapOf(
+                                    "brand" to query,
+                                    "generic" to "N/A",
+                                    "summary" to "Πληροφορίες για $query"
+                                )
+                            )
                         )
                     )
-                )
-
-                call.respond(response)
+                }
             }
         }
 
-        // Τα υπόλοιπα routes όπως τα είχες
-        scanRoutes()
-        ocrRoutes()
     }
 }

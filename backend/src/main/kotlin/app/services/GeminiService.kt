@@ -6,139 +6,220 @@ import com.google.cloud.vertexai.VertexAI
 import com.google.cloud.vertexai.api.Blob
 import com.google.cloud.vertexai.api.Content
 import com.google.cloud.vertexai.api.GenerationConfig
-import com.google.cloud.vertexai.api.HarmCategory
 import com.google.cloud.vertexai.api.Part
-import com.google.cloud.vertexai.api.SafetySetting
 import com.google.cloud.vertexai.generativeai.GenerativeModel
 import com.google.protobuf.ByteString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 object GeminiService {
     private val mapper = jacksonObjectMapper()
     private const val PROJECT_ID = "healthguard-b443f"
-    private const val LOCATION = "us-central1"
-    private const val MODEL_NAME = "gemini-2.0-flash"
+    private const val LOCATION = "europe-west1"
+    private const val MODEL_NAME =
+        "gemini-2.0-flash-001" // Αλλαγή σε 1.5 για μεγαλύτερη σταθερότητα
 
-    private const val SYSTEM_INSTRUCTION =
-        "Είσαι ο HealthGuard AI, ένας έγκριτος ψηφιακός φαρμακευτικός βοηθός. " +
-                "Πάντα ξεκινάς με μια σύντομη ιατρική αποποίηση ευθύνης. " +
-                "Απαντάς αυστηρά με βάση τα ιατρικά δεδομένα της δραστικής ουσίας που σου δίνεται. " +
-                "Χρησιμοποίησε bullet points, bold κείμενο στα σημαντικά και ελληνική γλώσσα."
+    private val SYSTEM_INSTRUCTION = """
+        Είσαι ο HealthGuard AI, ένας έμπειρος φαρμακοποιός. 
+        ΚΑΝΟΝΕΣ:
+        1. Ξεκινάς ΠΑΝΤΑ με μια σύντομη ιατρική αποποίηση ευθύνης.
+        2. Απαντάς ΑΝΑΛΥΤΙΚΑ με bullet points και έντονα γράμματα (bold).
+        3. Αν ο χρήστης ρωτάει για παρενέργειες ή δοσολογία, δίνεις πλήρη λίστα.
+        4. Απαντάς στα Ελληνικά.
+    """.trimIndent()
 
-    private val vertexAi: VertexAI by lazy {
-        VertexAI(PROJECT_ID, LOCATION)
-    }
+    private val vertexAi: VertexAI by lazy { VertexAI(PROJECT_ID, LOCATION) }
 
-    // Δημιουργία μοντέλου με ενσωματωμένες οδηγίες συστήματος και ρυθμίσεις ασφαλείας
     private val model: GenerativeModel by lazy {
-        val config = GenerationConfig.newBuilder()
-            .setTemperature(0.2f) // Χαμηλό temperature για ακρίβεια
+        val generationConfig = GenerationConfig.newBuilder()
+            .setTemperature(0.7f)
+            .setTopP(0.95f)
+            .setMaxOutputTokens(900)
             .build()
 
-        // Ρυθμίσεις για να μην μπλοκάρονται ιατρικές ερωτήσεις
-        val safetySettings = listOf(
-            SafetySetting.newBuilder()
-                .setCategory(HarmCategory.HARM_CATEGORY_HATE_SPEECH)
-                .setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_NONE)
-                .build(),
-            SafetySetting.newBuilder()
-                .setCategory(HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT)
-                .setThreshold(SafetySetting.HarmBlockThreshold.BLOCK_ONLY_HIGH)
-                .build()
-        )
+
+
 
         GenerativeModel.Builder()
             .setModelName(MODEL_NAME)
             .setVertexAi(vertexAi)
-            .setSystemInstruction(Content.newBuilder().addParts(Part.newBuilder().setText(SYSTEM_INSTRUCTION).build()).build())
-            .setGenerationConfig(config)
-            .setSafetySettings(safetySettings)
-            .build()
-    }
-
-    suspend fun processImage(imageBytes: ByteArray): MedicineOcrResult? = withContext(Dispatchers.IO) {
-        try {
-            val promptText = "Ανάλυσε την εικόνα του φαρμάκου. Επίστρεψε ΜΟΝΟ ένα JSON object με τα κλειδιά: brand, activeSubstance, strength, form. Αν κάτι λείπει, βάλε κενό string."
-
-            val content = Content.newBuilder()
-                .setRole("user")
-                .addParts(Part.newBuilder().setText(promptText).build())
-                .addParts(Part.newBuilder().setInlineData(Blob.newBuilder()
-                    .setMimeType("image/jpeg")
-                    .setData(ByteString.copyFrom(imageBytes)).build()).build())
-                .build()
-
-            val response = model.generateContent(content)
-            val rawText = response.candidatesList.firstOrNull()?.content?.partsList?.firstOrNull()?.text ?: ""
-
-            val jsonRegex = Regex("""\{.*\}""", RegexOption.DOT_MATCHES_ALL)
-            val matchResult = jsonRegex.find(rawText)
-            val cleanJson = matchResult?.value ?: return@withContext null
-
-            val result = mapper.readValue(cleanJson, MedicineOcrResult::class.java)
-
-            return@withContext MedicineOcrResult(
-                brand = result.brand?.ifBlank { "Άγνωστο" } ?: "Άγνωστο",
-                activeSubstance = result.activeSubstance ?: "",
-                strength = result.strength ?: "",
-                form = result.form ?: ""
+            .setSystemInstruction(
+                Content.newBuilder().addParts(Part.newBuilder().setText(SYSTEM_INSTRUCTION)).build()
             )
-
-        } catch (e: Exception) {
-            println("OCR ERROR: ${e.message}")
-            MedicineOcrResult("Error Reading Image", "", "", "")
-        }
+            .setGenerationConfig(generationConfig)
+            .build() // Χωρίς .setTools
     }
 
-    suspend fun chat(message: String, historyId: String?, context: Map<String, Any?>?): ChatResponse = withContext(Dispatchers.IO) {
-        val brand = context?.get("brand")?.toString() ?: ""
-        val substance = context?.get("activeSubstance")?.toString() ?: ""
-        val strength = context?.get("strength")?.toString() ?: ""
+    suspend fun chat(
+        message: String,
+        historyId: String?,
+        context: Map<String, String>?
+    ): ChatResponse = withContext(Dispatchers.IO) {
 
-        // Βελτιωμένο Prompt για να "αναγκάσουμε" το μοντέλο να απαντήσει συγκεκριμένα
+        val sessionId = historyId ?: UUID.randomUUID().toString()
+
+        val brand = context?.get("brand") ?: "το φάρμακο"
+        val substance = context?.get("activeSubstance") ?: ""
+        val strength = context?.get("strength") ?: ""
+        val form = context?.get("form") ?: ""
+
+        // Pull recent history
+        val history = ChatMemory.get(sessionId)
+
+        val historyText = if (history.isEmpty()) {
+            "(no previous messages)"
+        } else {
+            history.joinToString("\n") { turn ->
+                val who = if (turn.role == "user") "USER" else "ASSISTANT"
+                "$who: ${turn.text}"
+            }
+        }
+
         val userPrompt = """
-            ΠΛΗΡΟΦΟΡΙΕΣ ΦΑΡΜΑΚΟΥ:
-            - Όνομα: $brand
-            - Δραστική: $substance
-            - Ισχύς: $strength
-            
-            ΕΡΩΤΗΣΗ ΧΡΗΣΤΗ: "$message"
-            
-            ΟΔΗΓΙΑ: Απάντησε συγκεκριμένα για το παραπάνω φάρμακο. Αν η ερώτηση αφορά παρενέργειες ή δοσολογία, χρησιμοποίησε τα δεδομένα της δραστικής ουσίας $substance.
-        """.trimIndent()
+        ΕΙΣΑΙ ΦΑΡΜΑΚΟΠΟΙΟΣ. ΜΗΝ ΚΑΝΕΙΣ ΔΙΑΓΝΩΣΗ. 
+        Αν υπάρχουν σημάδια επείγοντος, πες να καλέσει άμεσα τις τοπικές υπηρεσίες έκτακτης ανάγκης.
+
+        TARGET_MEDICINE: $brand ($substance)
+        PACKAGING: strength=$strength, form=$form
+
+        CHAT_HISTORY:
+        $historyText
+
+        USER_QUESTION:
+        $message
+    """.trimIndent()
+
+        // Store user turn
+        ChatMemory.appendUser(sessionId, message)
 
         try {
-            val content = Content.newBuilder()
-                .setRole("user")
-                .addParts(Part.newBuilder().setText(userPrompt).build())
-                .build()
+            val response = model.generateContent(userPrompt)
+            val replyText =
+                response.candidatesList.firstOrNull()?.content?.partsList?.firstOrNull()?.text
+                    ?: "Λυπάμαι, δεν μπόρεσα να επεξεργαστώ το αίτημα."
 
-            val response = model.generateContent(content)
+            // Store assistant turn
+            ChatMemory.appendAssistant(sessionId, replyText)
 
-            // Έλεγχος αν η απάντηση είναι κενή λόγω φίλτρων
-            val replyText = response.candidatesList.firstOrNull()?.content?.partsList?.firstOrNull()?.text
-                ?: "Λυπάμαι, δεν μπορώ να παρέχω αυτές τις πληροφορίες για λόγους ασφαλείας. Συμβουλευτείτε το γιατρό σας."
+            val galinosLink =
+                "https://www.galinos.gr/el/medicines/search?q=${brand.replace(" ", "+")}"
 
             ChatResponse(
-                sessionId = historyId ?: java.util.UUID.randomUUID().toString(),
+                sessionId = sessionId,
                 reply = replyText,
-                metadata = mapOf("status" to "success")
+                metadata = mapOf(
+                    "status" to "success",
+                    "sources" to listOf(mapOf("title" to "Galinos.gr", "url" to galinosLink)),
+                    "quickActions" to quickActions(),
+                    "context" to mapOf(
+                        "brand" to brand,
+                        "activeSubstance" to substance,
+                        "strength" to strength,
+                        "form" to form
+                    )
+                )
             )
         } catch (e: Exception) {
             println("CHAT ERROR: ${e.message}")
+            e.printStackTrace()
             ChatResponse(
-                sessionId = historyId ?: java.util.UUID.randomUUID().toString(),
-                reply = "Σφάλμα επικοινωνίας με την AI.",
+                sessionId = sessionId,
+                reply = "Σφάλμα AI: ${e.message}",
                 metadata = mapOf("status" to "error")
             )
         }
     }
-}
 
-data class MedicineOcrResult(
-    val brand: String?,
-    val activeSubstance: String?,
-    val strength: String?,
-    val form: String?
-)
+
+    private fun detectMimeType(bytes: ByteArray): String {
+        if (bytes.size < 12) return "application/octet-stream"
+
+        // JPEG: FF D8 FF
+        if (bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte()) {
+            return "image/jpeg"
+        }
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        val pngSig = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        if (bytes.size >= 8 && bytes.copyOfRange(0, 8).contentEquals(pngSig)) {
+            return "image/png"
+        }
+
+        // WEBP: "RIFF"...."WEBP"
+        if (bytes[0] == 'R'.code.toByte() && bytes[1] == 'I'.code.toByte() &&
+            bytes[2] == 'F'.code.toByte() && bytes[3] == 'F'.code.toByte() &&
+            bytes[8] == 'W'.code.toByte() && bytes[9] == 'E'.code.toByte() &&
+            bytes[10] == 'B'.code.toByte() && bytes[11] == 'P'.code.toByte()
+        ) {
+            return "image/webp"
+        }
+
+        return "application/octet-stream"
+    }
+    fun quickActions(): List<Map<String, String>> = listOf(
+        mapOf(
+            "id" to "side_effects",
+            "title" to "Παρενέργειες",
+            "message" to "Ποιες είναι οι παρενέργειες για αυτό το φάρμακο; Δώσε πλήρη λίστα και πότε να ζητήσω βοήθεια."
+        ),
+        mapOf(
+            "id" to "dosage",
+            "title" to "Δοσολογία",
+            "message" to "Ποια είναι η δοσολογία; Δώσε τυπικές οδηγίες και σημαντικές προειδοποιήσεις."
+        ),
+        mapOf(
+            "id" to "contraindications",
+            "title" to "Αντενδείξεις",
+            "message" to "Ποιες είναι οι αντενδείξεις και ποιοι πρέπει να το αποφεύγουν;"
+        ),
+        mapOf(
+            "id" to "missed_dose",
+            "title" to "Ξέχασα τα χάπια μου",
+            "message" to "Ξέχασα μια δόση. Τι να κάνω; Δώσε πρακτικές οδηγίες και τι να αποφύγω."
+        )
+    )
+
+    suspend fun processImage(imageBytes: ByteArray): MedicineOcrResult? =
+        withContext(Dispatchers.IO) {
+            try {
+                if (imageBytes.isEmpty()) throw IllegalArgumentException("Empty image bytes")
+
+                val mimeType = detectMimeType(imageBytes)
+                if (!mimeType.startsWith("image/")) {
+                    throw IllegalArgumentException("Unsupported/invalid image format (mime=$mimeType)")
+                }
+
+                val promptText =
+                    "Ανάλυσε την εικόνα του φαρμάκου. Επίστρεψε ΜΟΝΟ ένα JSON object με τα κλειδιά: brand, activeSubstance, strength, form."
+
+                val content = Content.newBuilder()
+                    .setRole("user")
+                    .addParts(Part.newBuilder().setText(promptText).build())
+                    .addParts(
+                        Part.newBuilder().setInlineData(
+                            Blob.newBuilder()
+                                .setMimeType(mimeType)
+                                .setData(ByteString.copyFrom(imageBytes))
+                                .build()
+                        ).build()
+                    )
+                    .build()
+
+                val response = model.generateContent(content)
+                val rawText =
+                    response.candidatesList.firstOrNull()?.content?.partsList?.firstOrNull()?.text ?: ""
+
+                val match = Regex("""\{.*\}""", RegexOption.DOT_MATCHES_ALL).find(rawText)
+                val cleanJson = match?.value ?: return@withContext null
+
+                return@withContext mapper.readValue(cleanJson, MedicineOcrResult::class.java)
+
+            } catch (e: Exception) {
+                println("OCR ERROR: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+
+}

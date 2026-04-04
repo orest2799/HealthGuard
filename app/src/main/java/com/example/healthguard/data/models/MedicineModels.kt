@@ -1,10 +1,12 @@
 package com.example.healthguard.data.models
 
-import com.google.gson.annotations.SerializedName
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 
+@JsonClass(generateAdapter = true) // Απαραίτητο για το Moshi
 data class MedicineOcrResult(
-    @SerializedName("brand") val brand: String? = null,
-    @SerializedName("activeSubstance") val activeSubstance: String? = null,
-    @SerializedName("strength") val strength: String? = null,
-    @SerializedName("form") val form: String? = null
+    @Json(name = "brand") val brand: String? = null,
+    @Json(name = "activeSubstance") val activeSubstance: String? = null,
+    @Json(name = "strength") val strength: String? = null,
+    @Json(name = "form") val form: String? = null
 )

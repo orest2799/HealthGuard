@@ -8,10 +8,9 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-// ΑΦΑΙΡΕΣΗ: Η παράμετρος dataStore έφυγε
 fun Route.visionRoutes() {
 
-    // 1. OCR ENDPOINT - Αυτό είναι το σημαντικό για το AI
+
     post("/ocr") {
         try {
             val bytes = call.receive<ByteArray>()
@@ -21,7 +20,7 @@ fun Route.visionRoutes() {
                 println("SERVER SENDING TO ANDROID: $result") // Δες το στο Google Cloud Logs
                 call.respond(HttpStatusCode.OK, result)
             } else {
-                // Μην στέλνεις 500, στείλε ένα άδειο αντικείμενο για να μη σκάσει το κινητό
+
                 call.respond(HttpStatusCode.OK, mapOf("brand" to "Unknown"))
             }
         } catch (e: Exception) {
@@ -29,7 +28,7 @@ fun Route.visionRoutes() {
         }
     }
 
-    // 2. TEST ENDPOINT - Για έλεγχο αν δουλεύει ο server
+
     get("/test-local") {
         call.respond(HttpStatusCode.OK, mapOf("status" to "HealthGuard API is working!"))
     }

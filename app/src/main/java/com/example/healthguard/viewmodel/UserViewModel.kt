@@ -13,8 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 data class UserProfile(
     val firstName: String = "",
@@ -60,7 +58,9 @@ class UserViewModel : ViewModel() {
         _userProfile.value = profile
     }
 
-    fun markSignedIn() { _isSignedIn.value = true }
+    fun markSignedIn() {
+        _isSignedIn.value = true
+    }
 
     fun markSignedOut() {
         _isSignedIn.value = false
@@ -110,24 +110,22 @@ class UserViewModel : ViewModel() {
     fun pingBackend() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Preferred: via Retrofit service (requires HealthService + ApiClient.health)
-                val retrofitOk = runCatching { ApiClient.health.getHealth() }.getOrNull()
-                val text = when {
-                    retrofitOk != null && retrofitOk.isSuccessful -> retrofitOk.body() ?: "Empty"
-                    retrofitOk != null -> "Error: ${retrofitOk.code()} ${retrofitOk.message()}"
-                    else -> {
-                        // Fallback: raw OkHttp GET to /health (works even without Retrofit service)
-                        val base = getBaseUrl() // keep in one place
-                        OkHttpClient().newCall(
-                            Request.Builder().url("${base}health").build()
-                        ).execute().use { resp ->
-                            if (!resp.isSuccessful) "Error: ${resp.code}" else (resp.body?.string() ?: "Empty")
-                        }
-                    }
+                val response = ApiClient.health.getHealth()
+
+                val text: String = if (response.isSuccessful) {
+                    response.body()?.status ?: "Empty"
+                } else {
+                    "Error: ${response.code()} ${response.message()}"
                 }
-                withContext(Dispatchers.Main) { _backendStatus.value = text as String }
+
+                withContext(Dispatchers.Main) {
+                    _backendStatus.value = text
+                }
+
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { _backendStatus.value = "Error: ${e.message}" }
+                withContext(Dispatchers.Main) {
+                    _backendStatus.value = "Error: ${e.message}"
+                }
             }
         }
     }
@@ -136,41 +134,26 @@ class UserViewModel : ViewModel() {
     fun pingBackendSecure() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val user = auth.currentUser ?: throw IllegalStateException("Not signed in")
-                val token = user.getIdToken(false).await().token ?: throw IllegalStateException("No ID token")
+                val response = ApiClient.health.getHealth()
 
-                val base = getBaseUrl()
-                val req = Request.Builder()
-                    .url("${base}health")
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
-
-                OkHttpClient().newCall(req).execute().use { resp ->
-                    val text = if (!resp.isSuccessful) "Error: ${resp.code}" else (resp.body?.string() ?: "Empty")
-                    withContext(Dispatchers.Main) { _backendStatus.value = text }
+                val text = if (response.isSuccessful) {
+                    response.body()?.status ?: "OK"
+                } else {
+                    "Error: ${response.code()}"
                 }
+
+                withContext(Dispatchers.Main) {
+                    _backendStatus.value = text
+                }
+
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { _backendStatus.value = "Auth error: ${e.message}" }
+                withContext(Dispatchers.Main) {
+                    _backendStatus.value = "Error: ${e.message}"
+                }
             }
         }
     }
 
-
-    private fun getBaseUrl(): String {
-        // 🔧 Keep these in sync with ApiClient.kt
-        val useLocal = true
-        val useEmulator = false  // ← Set to false for physical device
-
-        val localEmulator = "http://10.0.2.2:8080/"
-        val localDevice = "http://192.168.1.146:8080/"  // ← UPDATE if your computer IP is different
-        val prodUrl = "https://medicine-backend-192038493071.us-central1.run.app/"
-
-        return when {
-            !useLocal -> prodUrl
-            useEmulator -> localEmulator
-            else -> localDevice  // ← Will now use this!
-        }
-    }
 
     override fun onCleared() {
         super.onCleared()

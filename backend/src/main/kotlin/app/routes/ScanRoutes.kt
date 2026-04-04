@@ -2,9 +2,9 @@ package app.routes
 
 
 
-import app.meds.MedProvider
-import app.meds.MedQuery
-import app.meds.MedRecord
+import app.models.MedProvider
+import app.models.MedQuery
+import app.models.MedRecord
 import app.meds.extractDosages
 import app.meds.generateCandidates
 import app.meds.scoreRecord
@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -46,7 +45,7 @@ fun Route.scanRoutes() {
     // that implements MedProvider (e.g. GalinosProvider), put it in this list.
     val providers: List<MedProvider> = emptyList()
 
-    post("/api/vision/scan") {
+    post("/scan") {
         val body = call.receive<ScanRequest>()
         val q = body.ocrText.trim()
         if (q.isBlank()) {
@@ -93,7 +92,7 @@ fun Route.scanRoutes() {
             .take(10)
 
         // 4) write JSON file
-        val outDir = File("build/outputs/scans").apply { mkdirs() }
+        val outDir = File("/tmp/scans").apply { mkdirs() }
         val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val safeQ = q.take(40).replace(Regex("[^\\w\\-]+"), "_")
         val id = "${ts}_${safeQ}"

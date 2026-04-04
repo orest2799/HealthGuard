@@ -4,13 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.RectF
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
@@ -20,211 +19,304 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.concurrent.futures.await
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
-import androidx.core.net.toUri
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.healthguard.data.network.dto.MedRecord
-import com.example.healthguard.presentation.utils.Detection
-import com.example.healthguard.presentation.utils.YoloV8Detector
+import com.example.healthguard.viewmodel.CameraViewModel
+import com.example.healthguard.viewmodel.utils.Detection
 import java.io.File
 import java.util.concurrent.Executors
 
-
-private const val TAG = "CameraScreen"
-private const val DETECTION_CONFIDENCE_THRESHOLD = 0.65f
-
 @RequiresApi(Build.VERSION_CODES.P)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CameraScreen(
     navController: NavController,
-    onImageCaptured: (File) -> Unit // Αυτή η παράμετρος θα καλέσει το chatVm.processScannedImage
+    onImageCaptured: (File) -> Unit
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val cameraViewModel: CameraViewModel = viewModel()
 
-    var hasCam by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+    LaunchedEffect(Unit) { cameraViewModel.initDetector(context) }
+
+    // --- Camera Permission ---
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { hasCameraPermission = it }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    // UI State
-    var isBusy by remember { mutableStateOf(false) }
-    var detections by remember { mutableStateOf<List<Detection>>(emptyList()) }
+    // --- Gallery Permission ---
+    val galleryPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
 
-    // CameraX Setup
-    val previewView = remember { PreviewView(context) }
-    val preview = remember { Preview.Builder().build() }
-    val imageCapture = remember { ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build() }
-    val detector = remember { YoloV8Detector(context) }
-    val analyzerExec = remember { Executors.newSingleThreadExecutor() }
+    var hasGalleryPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, galleryPermission)
+                    == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasGalleryPermission = granted
+    }
 
-    // Permission handling
-    val askCam = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasCam = it }
-    LaunchedEffect(Unit) { if (!hasCam) askCam.launch(Manifest.permission.CAMERA) }
-
-    LaunchedEffect(hasCam) {
-        if (hasCam) {
-            try {
-                val provider = ProcessCameraProvider.getInstance(context).await()
-                provider.unbindAll()
-
-                // Real-time Object Detection (YOLO)
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                    .build().also { ia ->
-                        ia.setAnalyzer(analyzerExec) { proxy ->
-                            if (!isBusy) {
-                                val frame = proxy.toRgbaBitmap()
-                                detections = detector.detect(frame, 0.45f, 0.5f).map { d ->
-                                    Detection(
-                                        RectF(d.boundingBox.left / frame.width, d.boundingBox.top / frame.height,
-                                            d.boundingBox.right / frame.width, d.boundingBox.bottom / frame.height),
-                                        d.label, d.confidence
-                                    )
-                                }
-                                frame.recycle()
-                            }
-                            proxy.close()
-                        }
-                    }
-                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture, analysis)
-                preview.surfaceProvider = previewView.surfaceProvider
-            } catch (e: Exception) { Log.e("CameraScreen", "Setup failed", e) }
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val tempFile = uriToFile(context, uri)
+            if (tempFile != null) onImageCaptured(tempFile)
         }
     }
 
-    Scaffold { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            if (hasCam) {
-                // Camera View
+    // --- CameraX Setup ---
+    val previewView = remember { PreviewView(context) }
+    val imageCapture = remember {
+        ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
+    }
+    val analyzerExec = remember { Executors.newSingleThreadExecutor() }
+
+    LaunchedEffect(hasCameraPermission, cameraViewModel.lensFacing) {
+        if (!hasCameraPermission) return@LaunchedEffect
+        try {
+            val provider = ProcessCameraProvider.getInstance(context).await()
+            provider.unbindAll()
+
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = previewView.surfaceProvider
+            }
+
+            val analysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                .build().also { ia ->
+                    ia.setAnalyzer(analyzerExec) { proxy ->
+                        if (!cameraViewModel.isBusy) {
+                            val frame = proxy.toRgbaBitmap()
+                            cameraViewModel.runDetection(frame)
+                        }
+                        proxy.close()
+                    }
+                }
+
+            val selector = CameraSelector.Builder()
+                .requireLensFacing(cameraViewModel.lensFacing)
+                .build()
+
+            provider.bindToLifecycle(lifecycleOwner, selector, preview, imageCapture, analysis)
+        } catch (e: Exception) {
+            Log.e("CameraScreen", "Camera setup failed", e)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { analyzerExec.shutdown() }
+    }
+
+    // --- UI ---
+    Scaffold(containerColor = Color.Black) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (hasCameraPermission) {
+
+                // Camera Preview
                 AndroidView(modifier = Modifier.fillMaxSize(), factory = { previewView })
 
                 // YOLO Bounding Boxes
-                LiveBoxesOverlay(detections)
+                LiveBoxesOverlay(cameraViewModel.detections)
 
-                // Capture Button
-                Button(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp),
-                    enabled = !isBusy,
-                    onClick = {
-                        isBusy = true
-                        val tempFile = File(context.cacheDir, "scan_${System.currentTimeMillis()}.jpg")
+                // Top Left: Back Arrow
+                IconButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
 
-                        imageCapture.takePicture(
-                            ImageCapture.OutputFileOptions.Builder(tempFile).build(),
-                            ContextCompat.getMainExecutor(context),
-                            object : ImageCapture.OnImageSavedCallback {
-                                override fun onImageSaved(res: ImageCapture.OutputFileResults) {
-                                    // ΕΔΩ ΕΙΝΑΙ Η ΚΡΙΣΙΜΗ ΣΥΝΔΕΣΗ:
-                                    // Στέλνουμε το αρχείο στο ViewModel και αλλάζουμε οθόνη
-                                    onImageCaptured(tempFile)
-                                    isBusy = false
-                                }
-                                override fun onError(e: ImageCaptureException) {
-                                    isBusy = false
-                                    Log.e("CameraScreen", "Capture failed", e)
-                                }
+                // Bottom Bar: Gallery | Capture | Flip
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 48.dp, start = 32.dp, end = 32.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Gallery Button
+                    IconButton(
+                        onClick = {
+                            if (hasGalleryPermission) {
+                                galleryLauncher.launch("image/*")
+                            } else {
+                                galleryPermissionLauncher.launch(galleryPermission)
                             }
+                        },
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoLibrary,
+                            contentDescription = "Open Gallery",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
-                ) {
-                    Text(if (isBusy) "Επεξεργασία..." else "Λήψη Φωτογραφίας")
+
+                    // Capture Button
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .border(4.dp, Color.White, CircleShape)
+                            .padding(6.dp)
+                            .clip(CircleShape)
+                            .background(if (cameraViewModel.isBusy) Color.Gray else Color.White)
+                            .clickable(enabled = !cameraViewModel.isBusy) {
+                                cameraViewModel.isBusy = true
+                                val tempFile = File(
+                                    context.cacheDir,
+                                    "scan_${System.currentTimeMillis()}.jpg"
+                                )
+                                imageCapture.takePicture(
+                                    ImageCapture.OutputFileOptions.Builder(tempFile).build(),
+                                    ContextCompat.getMainExecutor(context),
+                                    object : ImageCapture.OnImageSavedCallback {
+                                        override fun onImageSaved(res: ImageCapture.OutputFileResults) {
+                                            onImageCaptured(tempFile)  // this triggers ChatViewModel which saves properly
+                                            cameraViewModel.isBusy = false
+                                        }
+                                        override fun onError(e: ImageCaptureException) {
+                                            cameraViewModel.isBusy = false
+                                            Log.e("CameraScreen", "Capture failed", e)
+                                        }
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (cameraViewModel.isBusy) {
+                            Text("...", color = Color.White, fontSize = 12.sp)
+                        }
+                    }
+
+                    // Flip Camera Button
+                    IconButton(
+                        onClick = { cameraViewModel.flipCamera() },
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cameraswitch,
+                            contentDescription = "Flip Camera",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
+
+            } else {
+                Text(
+                    "Camera permission required",
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
         }
     }
 }
-@Composable
-private fun ResultCard(
-    thumb: Bitmap?,
-    ocr: String,
-    status: String?,
-    meds: List<MedRecord>,
-    onOpenUrl: (String) -> Unit,
-    onSave: (String, String) -> Unit // New callback for saving
-) {
-    Card(
-        elevation = CardDefaults.cardElevation(4.dp),
-        modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                thumb?.let {
-                    Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(90.dp).padding(end = 12.dp)
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Text("Detected Name", fontWeight = FontWeight.Bold)
-                    Text(ocr, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-                    if (!status.isNullOrBlank()) Text(status, color = Color.Gray)
-                }
-            }
 
-            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+// --- Helpers ---
 
-            Text("Select Match to Save to Cabinet", fontWeight = FontWeight.Bold)
-
-            meds.take(3).forEach { m ->
-                val name = m.brand ?: m.generic ?: "Unknown"
-                val info = m.summary ?: "${m.strength ?: ""} ${m.form ?: ""}"
-
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { onSave(name, info) } // CLICKING SAVES TO CABINET
-                        .padding(vertical = 12.dp)
-                ) {
-                    Text(name, color = Color(0xFF1A73E8), fontWeight = FontWeight.Bold)
-                    Text(info, style = MaterialTheme.typography.bodySmall)
-                    Text("Click to add to Cabinet", color = Color.Gray, style = MaterialTheme.typography.labelSmall)
-                }
-                HorizontalDivider(thickness = 0.5.dp)
-            }
-        }
+private fun uriToFile(context: Context, uri: Uri): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val tempFile = File(context.cacheDir, "gallery_pick_${System.currentTimeMillis()}.jpg")
+        tempFile.outputStream().use { output -> inputStream.copyTo(output) }
+        inputStream.close()
+        tempFile
+    } catch (e: Exception) {
+        Log.e("CameraScreen", "URI to file failed", e)
+        null
     }
+}
+
+private fun ImageProxy.toRgbaBitmap(): Bitmap {
+    val plane = planes[0].buffer
+    val w = width
+    val h = height
+    plane.rewind()
+    val bitmap = createBitmap(w, h)
+    bitmap.copyPixelsFromBuffer(plane)
+    return bitmap
 }
 
 @Composable
@@ -245,28 +337,4 @@ private fun LiveBoxesOverlay(detections: List<Detection>) {
             )
         }
     }
-}
-
-private fun openCustomTab(context: Context, url: String) {
-    runCatching { CustomTabsIntent.Builder().build().launchUrl(context, url.toUri()) }
-        .onFailure { e -> Log.e("CameraScreen", "CustomTab error", e) }
-}
-
-private fun cropFromNormalized(photo: Bitmap, norm: RectF): Bitmap {
-    val left = (norm.left * photo.width).toInt().coerceIn(0, photo.width - 1)
-    val top = (norm.top * photo.height).toInt().coerceIn(0, photo.height - 1)
-    val right = (norm.right * photo.width).toInt().coerceIn(left + 1, photo.width)
-    val bottom = (norm.bottom * photo.height).toInt().coerceIn(top + 1, photo.height)
-    return Bitmap.createBitmap(photo, left, top, right - left, bottom - top)
-}
-
-
-private fun ImageProxy.toRgbaBitmap(): Bitmap {
-    val plane = planes[0].buffer
-    val w = width
-    val h = height
-    plane.rewind()
-    val bitmap = createBitmap(w, h)
-    bitmap.copyPixelsFromBuffer(plane)
-    return bitmap
 }

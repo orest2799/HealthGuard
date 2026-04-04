@@ -5,7 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
-import com.example.healthguard.presentation.utils.Detection
+import com.example.healthguard.viewmodel.utils.Detection
 
 fun drawDetectionsOnBitmap(original: Bitmap, detections: List<Detection>): Bitmap {
     val resultBitmap = original.copy(Bitmap.Config.ARGB_8888, true)

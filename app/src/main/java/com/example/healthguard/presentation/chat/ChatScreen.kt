@@ -2,6 +2,7 @@ package com.example.healthguard.presentation.chat
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.TextView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,8 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.healthguard.data.network.dto.ChatSource
 import com.example.healthguard.viewmodel.ChatViewModel
+import io.noties.markwon.Markwon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,19 +58,10 @@ fun ChatScreen(
 ) {
     var input by remember { mutableStateOf("") }
     val messages by vm.messages.collectAsState()
+    val quickActions by vm.quickActions.collectAsState()   // ✅ NEW
     val listState = rememberLazyListState()
     val isSending by vm.isSending.collectAsState()
-
-    // 1. Προσθήκη του state για το Dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
-
-    val quickQuestions = listOf(
-        "Πώς να το πάρω;",
-        "Παρενέργειες;",
-        "Ξέχασα τη δόση μου",
-        "Αλληλεπιδράσεις;",
-        "Αντενδείξεις"
-    )
 
     LaunchedEffect(startWithSessionId) {
         if (startWithSessionId != null) {
@@ -89,7 +82,6 @@ fun ChatScreen(
                 actions = {
                     if (messages.isNotEmpty()) {
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            // 2. Διόρθωση του Icon component
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Clear Chat",
@@ -97,10 +89,7 @@ fun ChatScreen(
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                }
             )
         }
     ) { paddingValues ->
@@ -116,22 +105,18 @@ fun ChatScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 items(messages, key = { it.id }) { msg ->
-                    if (msg.fromUser) {
-                        UserBubble(text = msg.text)
-                    } else {
-                        BotBubble(text = msg.text, sources = msg.sources)
-                    }
+                    if (msg.fromUser) UserBubble(text = msg.text)
+                    else BotBubble(text = msg.text, sources = msg.sources)
+
                     Spacer(Modifier.height(8.dp))
                 }
 
                 if (isSending) {
-                    item(key = "typing_indicator") {
-                        AssistiveTyping()
-                    }
+                    item { AssistiveTyping() }
                 }
             }
 
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(thickness = 0.5.dp)
 
             Column(
                 modifier = Modifier
@@ -139,18 +124,21 @@ fun ChatScreen(
                     .navigationBarsPadding()
                     .padding(8.dp)
             ) {
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(quickQuestions) { question ->
-                        AssistChip(
-                            onClick = { if (!isSending) vm.send(question) },
-                            label = { Text(question) },
-                            enabled = !isSending
-                        )
+                // ✅ Backend-driven Quick Actions
+                if (quickActions.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(quickActions, key = { it.id }) { action ->
+                            AssistChip(
+                                onClick = { if (!isSending) vm.send(action.message) },
+                                label = { Text(action.title) },
+                                enabled = !isSending
+                            )
+                        }
                     }
                 }
 
@@ -163,10 +151,8 @@ fun ChatScreen(
                         onValueChange = { input = it },
                         modifier = Modifier.weight(1f),
                         placeholder = { Text("Ρωτήστε κάτι άλλο...") },
-                        maxLines = 4,
                         enabled = !isSending
                     )
-
                     Button(
                         onClick = {
                             if (input.isNotBlank()) {
@@ -186,70 +172,101 @@ fun ChatScreen(
         }
     }
 
-    // 3. Προσθήκη του AlertDialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Διαγραφή συνομιλίας;") },
-            text = { Text("Είστε σίγουροι ότι θέλετε να καθαρίσετε όλο το ιστορικό αυτής της συζήτησης;") },
+            text = { Text("Είστε σίγουροι ότι θέλετε να καθαρίσετε το ιστορικό;") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        vm.clearChat() // Βεβαιώσου ότι η clearChat() υπάρχει στο ViewModel
-                        showDeleteDialog = false
-                    }
-                ) {
+                TextButton(onClick = { vm.clearChat(); showDeleteDialog = false }) {
                     Text("Διαγραφή", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Ακύρωση")
-                }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Ακύρωση") }
             }
         )
     }
 }
 
-// Οι Bubbles συναρτήσεις παραμένουν ως έχουν κάτω από την ChatScreen
 @Composable
 fun UserBubble(text: String) {
-    Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier
-            .padding(start = 60.dp)
-            .fillMaxWidth()
-    ) {
-        Text(text, modifier = Modifier.padding(12.dp))
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.End) {
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.padding(start = 60.dp)
+        ) {
+            Text(text, modifier = Modifier.padding(12.dp))
+        }
     }
 }
 
 @Composable
 fun BotBubble(text: String, sources: List<ChatSource>) {
     val ctx = LocalContext.current
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier
-            .padding(end = 60.dp)
-            .fillMaxWidth()
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(text)
-            if (sources.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(sources) { s ->
-                        AssistChip(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(s.url))
-                                ctx.startActivity(intent)
-                            },
-                            label = {
-                                Text(s.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        )
+    val markwon = remember { Markwon.create(ctx) }
+    val bubbleColor = if (androidx.compose.foundation.isSystemInDarkTheme()) {
+        androidx.compose.ui.graphics.Color(0xFF2C2C2E)  // slightly lighter than black
+    } else {
+        androidx.compose.ui.graphics.Color(0xFFE0E0E0)  // medium grey, clearly visible
+    }
+    val textColorInt = if (androidx.compose.foundation.isSystemInDarkTheme()) {
+        android.graphics.Color.WHITE
+    } else {
+        android.graphics.Color.BLACK
+    }
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+        Surface(
+            color = bubbleColor,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.padding(end = 60.dp)
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                AndroidView(
+                    factory = { context ->
+                        TextView(context).apply {
+                            textSize = 14f
+                            setLineSpacing(4f, 1f)
+                        }
+                    },
+                    update = { textView ->
+                        textView.setTextColor(textColorInt)
+                        markwon.setMarkdown(textView, text)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (sources.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Πηγές:", style = MaterialTheme.typography.labelSmall)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(sources) { s ->
+                            AssistChip(
+                                onClick = {
+                                    val fixedUrl = if (s.url.contains("galinos.gr")) {
+                                        val uri = Uri.parse(s.url)
+                                        val query = uri.getQueryParameter("q") ?: ""
+
+                                        // 1. Clean the query: replace '+' with spaces and trim extra whitespace
+                                        val cleanQuery = query.replace("+", " ").trim()
+
+                                        // 2. Encode the full string (Name + Strength)
+                                        val encodedQuery = java.net.URLEncoder.encode(cleanQuery, "UTF-8")
+
+                                        // 3. Use the search endpoint
+                                        "https://www.galinos.gr/web/drugs/main/search?q=$encodedQuery"
+                                    } else {
+                                        s.url
+                                    }
+
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl))
+                                    ctx.startActivity(intent)
+                                },
+                                label = {
+                                    Text(s.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -260,8 +277,9 @@ fun BotBubble(text: String, sources: List<ChatSource>) {
 @Composable
 fun AssistiveTyping() {
     Text(
-        "Ο βοηθός πληκτρολογεί...",
+        "Ο HealthGuard αναζητά πληροφορίες...",
         style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(12.dp)
+        modifier = Modifier.padding(12.dp),
+        color = MaterialTheme.colorScheme.outline
     )
 }

@@ -1,5 +1,7 @@
 package app.meds
 
+import app.models.MedRecord
+
 fun scoreRecord(
     r: MedRecord,
     ocrTokens: Set<String>,

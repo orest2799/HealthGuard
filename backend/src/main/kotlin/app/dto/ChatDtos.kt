@@ -1,20 +1,11 @@
 package app.dto
 
-
-
-
-
-
-// ---------- Request sent to POST /chat ----------
 data class ChatRequest(
     val sessionId: String? = null,
-    val text: String = "",       // Giving this a default empty string
-    val medQuery: String? = null,
-    val medId: String? = null,
-    val context: Map<String, Any?>? = null
+    val text: String = "",
+    val context: Map<String, String>? = null
 )
 
-// ---------- Response from POST /chat ----------
 data class ChatResponse(
     val sessionId: String,
     val reply: String,

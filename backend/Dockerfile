@@ -1,12 +1,12 @@
-# Χρήση Java 17 runtime (Alpine για μικρό μέγεθος)
 FROM eclipse-temurin:17-jre-alpine
 
-# Ορισμός θύρας
+# Ρύθμιση για σωστά fonts και ελληνικά (προαιρετικό αλλά βοηθάει σε μερικές βιβλιοθήκες)
+RUN apk add --no-cache fontconfig ttf-dejavu
+
 EXPOSE 8080
 
-# Αντιγραφή του jar που έχουμε ήδη χτίσει τοπικά
-# Προσοχή: Το path 'build/libs/shadow.jar' πρέπει να είναι σωστό
-COPY build/libs/shadow.jar /app.jar
+# Αντιγραφή του αρχείου
+COPY shadow.jar /app.jar
 
-# Εκκίνηση
-ENTRYPOINT ["java", "-Xmx512m", "-jar", "/app.jar"]
+# Χρησιμοποιούμε flags που βοηθούν τη Java να καταλαβαίνει τα όρια μνήμης του Docker Container
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "/app.jar"]

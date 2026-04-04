@@ -24,8 +24,7 @@ class MedicineRepository {
     }
 
     fun searchMedicines(query: String, country: String?, type: String): List<MedRecord> {
-        // Since we are doing a real-time scan, we return a list of results.
-        // For now, we create a match based on the OCR query.
+
         return listOf(
             MedRecord(
                 brand = query,

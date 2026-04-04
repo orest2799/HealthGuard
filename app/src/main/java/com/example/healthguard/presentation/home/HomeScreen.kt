@@ -1,5 +1,8 @@
 package com.example.healthguard.presentation.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,14 +47,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.healthguard.R
-import com.example.healthguard.viewmodel.UserViewModel
+import com.example.healthguard.data.network.steps.Injection
+import com.example.healthguard.data.network.steps.StepTrackingService
 import com.example.healthguard.viewmodel.ThemeViewModel
+import com.example.healthguard.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,17 +71,16 @@ fun HomeScreen(
     var showSettings by remember { mutableStateOf(false) }
     val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
 
-    // 🔔 snackbar support
+
     val snackbarHostState = remember { SnackbarHostState() }
     val backendStatus by userViewModel.backendStatus.collectAsState() // <-- from UserViewModel
 
-    // Load user and ping backend once on enter
+
     LaunchedEffect(Unit) {
         userViewModel.loadUserData()
         userViewModel.pingBackend() // calls /health
     }
 
-    // Show a snackbar whenever backendStatus changes
     LaunchedEffect(backendStatus) {
         when {
             backendStatus.equals("OK", ignoreCase = true) ->
@@ -101,7 +107,7 @@ fun HomeScreen(
                     .verticalScroll(rememberScrollState())
             ) {
 
-                // ---------- Top Bar ----------
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -115,7 +121,7 @@ fun HomeScreen(
                         )
                     }
 
-                    // Avatar + Dropdown
+
                     Box {
                         IconButton(onClick = { showSettings = !showSettings }) {
                             Image(
@@ -193,12 +199,14 @@ fun HomeScreen(
                             }
 
                             HorizontalDivider()
-
+                            val context = LocalContext.current
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
+                                        StepTrackingService.stop(context)
+                                        Injection.reset()
                                         FirebaseAuth.getInstance().signOut()
                                         navController.navigate("login") {
                                             popUpTo("home") { inclusive = true }
@@ -219,17 +227,29 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text(
-                    text = "Welcome, ${user?.firstName ?: "User"}",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                var showWelcome by remember { mutableStateOf(true) }
+
+                LaunchedEffect(Unit) {
+                    delay(3000) // 3 seconds
+                    showWelcome = false
+                }
+
+                AnimatedVisibility(
+                    visible = showWelcome,
+                    exit = fadeOut(animationSpec = tween(600))
+                ) {
+                    Text(
+                        text = "Welcome, ${user?.firstName ?: "User"}",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                     )
-                )
+                }
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // ---------- Action Grid ----------
+
                 Column {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -257,8 +277,8 @@ fun HomeScreen(
                     ) {
                         HomeActionButton(
                             icon = R.drawable.ic_calendar,
-                            label = "Calendar",
-                            onClick = { navController.navigate("calendar") },
+                            label = "Appointments",
+                            onClick = { navController.navigate("appointment_list") },
                             modifier = Modifier.weight(1f)
                         )
                         HomeActionButton(

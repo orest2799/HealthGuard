@@ -10,6 +10,7 @@ plugins {
 
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
+
 }
 
 android {
@@ -48,12 +49,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
-        }
-    }
+    //kotlin {
+    //    compilerOptions {
+    //        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    //         freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
+    //      }
+//    }
 
     buildFeatures {
         compose = true
@@ -65,11 +66,19 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.navigation.runtime.ktx)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.protolite.well.known.types)
+    implementation(libs.androidx.foundation)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.play.services.location)
+    val room_version = "2.6.1"
     // 2. Core AndroidX - Accessors mapped from your TOML
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.browser)
-
+    implementation("io.noties.markwon:core:4.6.2")
 
     // 3. Firebase (BOM 34.4.0)
     implementation(platform(libs.firebase.bom))
@@ -116,4 +125,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Use 'ksp' if you have the KSP plugin, otherwise use 'kapt'
+
 }

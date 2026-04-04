@@ -1,9 +1,9 @@
 package com.example.healthguard.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.healthguard.data.models.MedicineOcrResult
 import com.example.healthguard.data.network.dto.ChatSource
 import com.example.healthguard.data.repo.ChatRepository
 import com.example.healthguard.data.repo.ChatSessionResult
@@ -13,6 +13,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
+
+data class ChatMessage(
+    val id: String,
+    val text: String,
+    val fromUser: Boolean,
+    val sources: List<ChatSource> = emptyList()
+)
+
+data class QuickAction(
+    val id: String,
+    val title: String,
+    val message: String
+)
 
 class ChatViewModel : ViewModel() {
 
@@ -24,11 +37,12 @@ class ChatViewModel : ViewModel() {
     private val _isSending = MutableStateFlow(false)
     val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
 
+    private val _quickActions = MutableStateFlow<List<QuickAction>>(emptyList())
+    val quickActions: StateFlow<List<QuickAction>> = _quickActions.asStateFlow()
+
+
     private var currentSessionId: String? = null
     private var currentMedicineName: String? = null
-
-    // Προσθήκη των μεταβλητών που έλειπαν ή προκαλούσαν σφάλματα
-    private var isInitialized = false
     private var currentSubstance: String? = null
     private var currentStrength: String? = null
 
@@ -41,34 +55,77 @@ class ChatViewModel : ViewModel() {
                 when (result) {
                     is ChatSessionResult.Success -> {
                         currentSessionId = result.sessionId
-                        currentMedicineName = result.extractedText
-
-                        // Λύση: Παίρνουμε τα δεδομένα απευθείας από το ocrResult
-                        // και όχι από το summaryText για να αποφύγουμε σφάλματα στο substring
+                        currentMedicineName = result.ocrResult.brand
                         currentSubstance = result.ocrResult.activeSubstance
                         currentStrength = result.ocrResult.strength
 
-                        val aiMsg = ChatMessage(
-                            id = UUID.randomUUID().toString(),
-                            text = result.reply,
-                            fromUser = false,
-                            sources = result.sources
-                        )
-                        _messages.value = listOf(aiMsg)
-                        isInitialized = true
-                    }
-
-                    is ChatSessionResult.Error -> {
                         _messages.value = listOf(
-                            ChatMessage(UUID.randomUUID().toString(), result.message, false)
+                            ChatMessage(
+                                id = UUID.randomUUID().toString(),
+                                text = result.reply,
+                                fromUser = false,
+                                sources = result.sources
+                            )
                         )
+                        _quickActions.value = result.quickActions.mapNotNull { m ->
+                            val id = m["id"] ?: return@mapNotNull null
+                            val title = m["title"] ?: return@mapNotNull null
+                            val message = m["message"] ?: return@mapNotNull null
+                            QuickAction(id, title, message)
+                        }
+
+
                     }
+                    is ChatSessionResult.Error -> addErrorMessage(result.message)
                 }
             } catch (e: Exception) {
-                Log.e("ChatViewModel", "OCR Crash", e)
-                _messages.value = listOf(
-                    ChatMessage(UUID.randomUUID().toString(), "Παρουσιάστηκε σφάλμα συστήματος.", false)
+                addErrorMessage("Παρουσιάστηκε σφάλμα κατά την επεξεργασία της εικόνας.")
+            } finally {
+                _isSending.value = false
+            }
+        }
+    }
+
+    fun send(messageText: String) {
+        if (messageText.isBlank() || _isSending.value) return
+
+
+        val sessionIdToSend: String? = currentSessionId
+
+        viewModelScope.launch {
+            try {
+                _isSending.value = true
+
+
+                val userMsg = ChatMessage(UUID.randomUUID().toString(), messageText, true)
+                _messages.value = _messages.value + userMsg
+
+                val result = chatRepo.sendMessage(
+                    sessionId = sessionIdToSend,
+                    message = messageText,
+                    medicineContext = currentMedicineName,
+                    activeSubstance = currentSubstance,
+                    strength = currentStrength
                 )
+
+                result.onSuccess { response ->
+                    currentSessionId = response.sessionId
+
+                    val botMsg = ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        text = response.reply,
+                        fromUser = false,
+                        sources = extractSourcesFromMetadata(response.metadata)
+                    )
+                    _messages.value = _messages.value + botMsg
+
+                    // Backend-driven quick actions
+                    _quickActions.value = extractQuickActions(response.metadata)
+                }.onFailure {
+                    addErrorMessage("Αδυναμία σύνδεσης με τον διακομιστή HealthGuard.")
+                }
+            } catch (e: Exception) {
+                addErrorMessage("Σφάλμα συστήματος.")
             } finally {
                 _isSending.value = false
             }
@@ -76,98 +133,11 @@ class ChatViewModel : ViewModel() {
     }
 
     fun startWithSession(sessionId: String?, title: String?) {
-        if (sessionId == "new") return
-
-        if (sessionId != null && sessionId != currentSessionId) {
-            currentSessionId = sessionId
-            currentMedicineName = title
-            _messages.value = emptyList()
-            isInitialized = true
-        }
-    }
-
-    fun send(messageText: String) {
-        if (messageText.isBlank()) return
-
-        val sessionId = currentSessionId
-        if (sessionId == null) {
-            currentMedicineName = messageText
-            startNewChatWithMessage(messageText)
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                _isSending.value = true
-                updateMessages(ChatMessage(UUID.randomUUID().toString(), messageText, true))
-
-                // Χρήση Safe Calls (?.) για την αποστολή στο Repo
-                val result = chatRepo.sendMessage(
-                    sessionId = sessionId,
-                    message = messageText,
-                    medicineContext = currentMedicineName,
-                    activeSubstance = currentSubstance, // Επιτρέπεται ως nullable String?
-                    strength = currentStrength          // Επιτρέπεται ως nullable String?
-                )
-
-                result.onSuccess { response ->
-                    val aiMsg = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        text = response.reply ?: "Δεν βρέθηκε απάντηση.",
-                        fromUser = false,
-                        sources = extractSources(response.metadata)
-                    )
-                    updateMessages(aiMsg)
-                }.onFailure { error ->
-                    updateMessages(ChatMessage(UUID.randomUUID().toString(), "Σφάλμα: ${error.localizedMessage}", false))
-                }
-            } finally {
-                _isSending.value = false
-            }
-        }
-    }
-
-    private fun startNewChatWithMessage(message: String) {
-        viewModelScope.launch {
-            try {
-                _isSending.value = true
-                val dummyOcr = MedicineOcrResult(brand = message, activeSubstance = "Άγνωστο", strength = "", form = "")
-
-                chatRepo.startChatWithMedicine(
-                    ocrResult = dummyOcr,
-                    medicineName = message,
-                    userQuestion = message
-                ).onSuccess { response ->
-                    currentSessionId = response.sessionId
-                    val aiMsg = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        text = response.reply ?: "Γεια! Πώς μπορώ να βοηθήσω;",
-                        fromUser = false,
-                        sources = extractSources(response.metadata)
-                    )
-                    _messages.value = listOf(aiMsg)
-                }.onFailure { error ->
-                    updateMessages(ChatMessage(UUID.randomUUID().toString(), "Σφάλμα: ${error.message}", false))
-                }
-            } finally {
-                _isSending.value = false
-            }
-        }
-    }
-
-    private fun updateMessages(newMessage: ChatMessage) {
-        _messages.value = _messages.value.toMutableList().apply { add(newMessage) }
-    }
-
-    private fun extractSources(metadata: Map<String, Any?>?): List<ChatSource> {
-        val sourcesList = metadata?.get("sources") as? List<*> ?: return emptyList()
-        return sourcesList.mapNotNull { source ->
-            if (source is Map<*, *>) {
-                val title = source["title"] as? String ?: return@mapNotNull null
-                val url = source["url"] as? String ?: return@mapNotNull null
-                ChatSource(title = title, url = url)
-            } else null
-        }
+        if (sessionId == null || sessionId == currentSessionId) return
+        currentSessionId = sessionId
+        currentMedicineName = title
+        _messages.value = emptyList()
+        _quickActions.value = emptyList()
     }
 
     fun clearChat() {
@@ -175,15 +145,112 @@ class ChatViewModel : ViewModel() {
         currentMedicineName = null
         currentSubstance = null
         currentStrength = null
-        isInitialized = false
         _messages.value = emptyList()
+        _quickActions.value = emptyList()
         _isSending.value = false
     }
-}
 
-data class ChatMessage(
-    val id: String,
-    val text: String,
-    val fromUser: Boolean,
-    val sources: List<ChatSource> = emptyList()
-)
+    private fun addErrorMessage(text: String) {
+        _messages.value = _messages.value + ChatMessage(UUID.randomUUID().toString(), text, false)
+    }
+
+    private fun extractSourcesFromMetadata(metadata: Map<String, Any?>?): List<ChatSource> {
+        val list = metadata?.get("sources") as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            ChatSource(
+                title = m["title"]?.toString() ?: "Πηγή",
+                url = m["url"]?.toString() ?: ""
+            )
+        }
+    }
+    fun processScannedImageAndSave(imageFile: File, context: Context) {
+        viewModelScope.launch {
+            try {
+                _isSending.value = true
+                val result = chatRepo.processMedicineImage(imageFile)
+
+                when (result) {
+                    is ChatSessionResult.Success -> {
+                        Log.d("MEDICINE_SAVE", "brand=${result.ocrResult.brand}, strength=${result.ocrResult.strength}")
+                        currentSessionId = result.sessionId
+                        currentMedicineName = result.ocrResult.brand
+                        currentSubstance = result.ocrResult.activeSubstance
+                        currentStrength = result.ocrResult.strength
+
+                        // Save crop AFTER we have the medicine name
+                        val name = result.ocrResult.brand?.lowercase()
+                            ?.replace(" ", "_") ?: "unknown"
+                        val strength = result.ocrResult.strength?.lowercase()
+                            ?.replace(" ", "") ?: "unknown"
+                        saveMedicineImage(context, imageFile, name, strength)
+
+                        _messages.value = listOf(
+                            ChatMessage(
+                                id = UUID.randomUUID().toString(),
+                                text = result.reply,
+                                fromUser = false,
+                                sources = result.sources
+                            )
+                        )
+                        _quickActions.value = result.quickActions.mapNotNull { m ->
+                            val id = m["id"] ?: return@mapNotNull null
+                            val title = m["title"] ?: return@mapNotNull null
+                            val message = m["message"] ?: return@mapNotNull null
+                            QuickAction(id, title, message)
+                        }
+                    }
+                    is ChatSessionResult.Error -> addErrorMessage(result.message)
+                }
+            } catch (e: Exception) {
+                addErrorMessage("Παρουσιάστηκε σφάλμα κατά την επεξεργασία της εικόνας.")
+            } finally {
+                _isSending.value = false
+            }
+        }
+    }
+
+    fun startChatFromGallery(medicineName: String, strength: String) {
+        clearChat()
+        currentMedicineName = medicineName
+        currentStrength = strength
+        // Send a pre-built first message
+        send("Πες μου πληροφορίες για το $medicineName $strength")
+    }
+
+    private fun saveMedicineImage(context: Context, sourceFile: File, name: String, strength: String) {
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance()
+            .currentUser?.uid ?: "unknown"
+        val medicineDir = File(
+            context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES),
+            "$userId/Medicine"
+        )
+        if (!medicineDir.exists()) medicineDir.mkdirs()
+
+        // Sanitize: remove or replace characters invalid in filenames
+        val safeName = name.lowercase()
+            .replace(" ", "_")
+            .replace(Regex("[^a-z0-9_]"), "")
+
+        val safeStrength = strength.lowercase()
+            .replace(" ", "")
+            .replace("/", "-")          // 875/125 mg → 875-125mg
+            .replace(Regex("[^a-z0-9_\\-]"), "")
+
+        val targetFile = File(medicineDir, "${safeName}_${safeStrength}.jpg")
+
+        if (targetFile.exists()) return  // no duplicates
+
+        sourceFile.copyTo(targetFile, overwrite = false)
+    }
+    private fun extractQuickActions(metadata: Map<String, Any?>?): List<QuickAction> {
+        val list = metadata?.get("quickActions") as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            val id = m["id"]?.toString() ?: return@mapNotNull null
+            val title = m["title"]?.toString() ?: return@mapNotNull null
+            val message = m["message"]?.toString() ?: return@mapNotNull null
+            QuickAction(id = id, title = title, message = message)
+        }
+    }
+}

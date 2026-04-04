@@ -15,20 +15,26 @@ class VisionRepository(
     private val parser: GeminiOCRParser = GeminiOCRParser()
 ) {
 
-    /**
-     * Updated to handle the String response from the API and
-     * return a parsed MedicineOcrResult object.
-     */
     suspend fun ocr(bitmap: Bitmap, quality: Int = 85): MedicineOcrResult? {
-        val bytes = bitmap.asByteArray(quality)
-        val body = bytes.toRequestBody("image/jpeg".toMediaType())
+        return try {
+            val bytes = bitmap.asByteArray(quality)
+            val body = bytes.toRequestBody("image/jpeg".toMediaType())
 
-        // 1. Get the raw String from the API
-        val rawJson: MedicineOcrResult = ApiClient.vision.scanMedicine(body)
 
-        // 2. Use the parser to convert String -> MedicineOcrResult
-        // This fixes the "Return type mismatch"
-        return parser.parseToResult(rawJson)
+            val response = ApiClient.vision.scanMedicine(body)
+
+
+            if (response.isSuccessful && response.body() != null) {
+                val resultObject = response.body()!!
+
+
+                parser.parseToResult(resultObject)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     suspend fun saveScan(ocr: String, bitmap: Bitmap, quality: Int = 85): ScanSavedResponse {
@@ -39,7 +45,6 @@ class VisionRepository(
         return ApiClient.scan.saveScan(req)
     }
 
-    /* ------------ helpers ------------ */
 
     private fun Bitmap.asByteArray(quality: Int): ByteArray =
         ByteArrayOutputStream().use { baos ->

@@ -6,9 +6,7 @@ import com.squareup.moshi.JsonClass
 data class ChatRequest(
     val sessionId: String? = null,
     val text: String,
-    val medQuery: String? = null,
-    val medId: String? = null,
-    val context: Map<String, Any?>? = null
+    val context: Map<String, String>? = null
 )
 
 @JsonClass(generateAdapter = true)

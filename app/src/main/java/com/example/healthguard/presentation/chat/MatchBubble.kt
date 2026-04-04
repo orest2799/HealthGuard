@@ -39,7 +39,7 @@ fun MatchBubbleOverlay(
     val payload by vm.payload.collectAsState()
     if (!visible || payload == null) return
 
-    // ✅ Read composable density value in a composable context
+
     val density = LocalDensity.current
 
     var sizePx by remember { mutableStateOf(Offset.Zero) }
@@ -55,7 +55,7 @@ fun MatchBubbleOverlay(
             .onGloballyPositioned {
                 containerSizePx = Offset(it.size.width.toFloat(), it.size.height.toFloat())
                 if (pos == Offset.Zero && containerSizePx != Offset.Zero) {
-                    // ✅ Use the captured `density` instead of calling LocalDensity.current here
+
                     val startX = with(density) { (containerSizePx.x - 96.dp.toPx() - 24.dp.toPx()) }
                     val startY = with(density) { (containerSizePx.y - 96.dp.toPx() - 150.dp.toPx()) }
                     pos = Offset(startX, startY)
@@ -90,7 +90,7 @@ fun MatchBubbleOverlay(
                 .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                 .shadow(8.dp, CircleShape)
                 .clickable {
-                    // ✅ use clickable modifier instead of Surface(onClick = …)
+
                     vm.hide()
                     onOpenChat(payload!!.sessionId, payload!!.title)
                 }
