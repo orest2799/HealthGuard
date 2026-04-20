@@ -31,7 +31,7 @@ fun AppTheme(
             surface = DarkSurface,
             onSurface = DarkOnSurface,
             // ADD THESE TWO:
-            surfaceVariant = Color(0xFF35353A), // A dark grey/purple
+            surfaceVariant = Color(0xFF35353A),
             onSurfaceVariant = Color(0xFFCAC4D0),
             error = DarkError,
             onError = DarkOnError

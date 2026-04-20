@@ -11,49 +11,47 @@ class PillLogFirebaseDataSource(
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
 ) {
 
-    private fun requireUid(): String {
+    // Fix: Return null instead of throwing an exception to prevent crashes
+    private fun getUid(): String? {
         return auth.currentUser?.uid
-            ?: throw IllegalStateException("User is not signed in")
     }
 
     private fun todayKey(): String {
         val calendar = Calendar.getInstance()
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH) + 1
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-        return "%04d-%02d-%02d".format(year, month, day)
+        return "%04d-%02d-%02d".format(
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH) + 1,
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
     }
 
-    private fun logsRef() =
+    private fun logsRef() = getUid()?.let { uid ->
         database.reference
             .child("users")
-            .child(requireUid())
+            .child(uid)
             .child("pillLogs")
             .child(todayKey())
+    }
 
     suspend fun markDoseTaken(timeKey: String) {
+        val ref = logsRef() ?: return // Safety exit if no user logged in
         Log.d("PILL_DEBUG", "Saving taken dose for date=${todayKey()}, key=$timeKey")
-
-        logsRef()
-            .child(timeKey)
-            .setValue(true)
-            .await()
+        ref.child(timeKey).setValue(true).await()
     }
 
     suspend fun unmarkDoseTaken(timeKey: String) {
-        logsRef()
-            .child(timeKey)
-            .removeValue()
-            .await()
+        val ref = logsRef() ?: return
+        ref.child(timeKey).removeValue().await()
     }
 
     suspend fun getTakenDoseKeysToday(): Set<String> {
-        val snapshot = logsRef().get().await()
-        val result = snapshot.children.mapNotNull { it.key }.toSet()
-
-        Log.d("PILL_DEBUG", "Loading taken doses for date=${todayKey()} -> $result")
-
-        return result
+        val ref = logsRef() ?: return emptySet()
+        return try {
+            val snapshot = ref.get().await()
+            snapshot.children.mapNotNull { it.key }.toSet()
+        } catch (e: Exception) {
+            Log.e("PILL_DEBUG", "Failed to load logs", e)
+            emptySet()
+        }
     }
 }

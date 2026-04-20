@@ -23,9 +23,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.healthguard.R
 import com.example.healthguard.viewmodel.AlarmViewModel
 
 @Composable
@@ -94,10 +96,7 @@ fun AlarmScreen(
         ) {
             Button(
                 onClick = {
-                    viewModel.onSnooze(context) {
-                        onSnooze()
-                        (context as? Activity)?.finish()
-                    }
+                    onSnooze()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -108,7 +107,7 @@ fun AlarmScreen(
                     contentColor = colors.onPrimary
                 )
             ) {
-                Text("Snooze", fontSize = 24.sp)
+                Text(stringResource(R.string.alarm_snooze), fontSize = 24.sp)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -129,7 +128,7 @@ fun AlarmScreen(
                     contentColor = colors.onSecondaryContainer
                 )
             ) {
-                Text("Taken", fontSize = 24.sp)
+                Text(stringResource(R.string.alarm_taken), fontSize = 24.sp)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

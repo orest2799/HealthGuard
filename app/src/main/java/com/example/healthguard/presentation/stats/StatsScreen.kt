@@ -1,8 +1,11 @@
 package com.example.healthguard.presentation.stats
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,14 +20,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -43,54 +57,45 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.healthguard.R
 import com.example.healthguard.viewmodel.StepUiState
 import com.example.healthguard.viewmodel.StepViewModel
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
+// Labels are kept as plain identifiers here; localized versions are resolved
+// inside Composables using stringResource() so they switch with the locale.
 
-enum class RangeOption(val label: String, val days: Int) {
-    Today("Today", 1),
-    Week("7 days", 7),
-    Month30("30 days", 30),
-    Month90("3 months", 90),
-    Month180("6 months", 180)
+enum class RangeOption(val days: Int) {
+    Today(1), Week(7), Month30(30), Month90(90), Month180(180)
 }
 
-enum class GoalFilter(val label: String) {
-    All("All"),
-    Reached("✓ Goal"),
-    Missed("✗ Missed")
-}
+enum class GoalFilter { All, Reached, Missed }
 
-enum class SortMode(val label: String) {
-    Newest("Newest"),
-    Oldest("Oldest"),
-    Most("Most steps"),
-    Least("Least steps")
-}
+enum class SortMode { Newest, Oldest, Most, Least }
 
-enum class ChartType(val label: String) {
-    Bar("Bar"),
-    Line("Line"),
-    Heat("Heat")
-}
+enum class ChartType { Bar, Line, Heat }
 
-// ─── Fixed accent colours (brand colours, same in light & dark) ──────────────
+// ─── Fixed accent colours ────────────────────────────────────────────────────
 
-private val AccentTeal   = Color(0xFF2EC4A6)
-private val AccentAmber  = Color(0xFFF5A623)
-private val AccentRed    = Color(0xFFE8504A)
+private val AccentTeal      = Color(0xFF2EC4A6)
+private val AccentAmber     = Color(0xFFF5A623)
+private val AccentRed       = Color(0xFFE8504A)
 private val AccentTealSoft  = Color(0x1F2EC4A6)
 private val AccentAmberSoft = Color(0x1AF5A623)
 private val AccentRedSoft   = Color(0x1AE8504A)
 
-// ─── Data helpers ─────────────────────────────────────────────────────────────
+// ─── Data helpers ────────────────────────────────────────────────────────────
 
 data class DayEntry(val date: String, val steps: Int)
 
@@ -128,7 +133,7 @@ private fun Int.toShortString(): String =
 
 private fun Int.toLocaleString(): String = String.format(Locale.US, "%,d", this)
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── Screen ──────────────────────────────────────────────────────────────────
 
 @Composable
 fun StatsScreen(viewModel: StepViewModel) {
@@ -140,6 +145,31 @@ fun StatsScreen(viewModel: StepViewModel) {
     var sortMode    by remember { mutableStateOf(SortMode.Newest) }
     var chartType   by remember { mutableStateOf(ChartType.Bar) }
 
+    // Localized enum labels resolved here in Composable scope
+    val rangeLabels = mapOf(
+        RangeOption.Today    to stringResource(R.string.stats_range_today),
+        RangeOption.Week     to stringResource(R.string.stats_range_7days),
+        RangeOption.Month30  to stringResource(R.string.stats_range_30days),
+        RangeOption.Month90  to stringResource(R.string.stats_range_3months),
+        RangeOption.Month180 to stringResource(R.string.stats_range_6months)
+    )
+    val goalFilterLabels = mapOf(
+        GoalFilter.All     to stringResource(R.string.stats_filter_all),
+        GoalFilter.Reached to stringResource(R.string.stats_filter_reached),
+        GoalFilter.Missed  to stringResource(R.string.stats_filter_missed)
+    )
+    val sortLabels = mapOf(
+        SortMode.Newest to stringResource(R.string.stats_sort_newest),
+        SortMode.Oldest to stringResource(R.string.stats_sort_oldest),
+        SortMode.Most   to stringResource(R.string.stats_sort_most),
+        SortMode.Least  to stringResource(R.string.stats_sort_least)
+    )
+    val chartLabels = mapOf(
+        ChartType.Bar  to stringResource(R.string.stats_chart_bar),
+        ChartType.Line to stringResource(R.string.stats_chart_line),
+        ChartType.Heat to stringResource(R.string.stats_chart_heat)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -149,7 +179,7 @@ fun StatsScreen(viewModel: StepViewModel) {
             is StepUiState.Loading -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "Loading…",
+                        stringResource(R.string.stats_loading),
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         fontSize = 14.sp
                     )
@@ -175,17 +205,47 @@ fun StatsScreen(viewModel: StepViewModel) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item {
                         ActivityHeader(
-                            rangeLabel = if (rangeOption == RangeOption.Today) "Today"
-                            else "Last ${rangeOption.days} days",
+                            rangeLabel = if (rangeOption == RangeOption.Today)
+                                stringResource(R.string.stats_range_today)
+                            else
+                                stringResource(R.string.stats_range_last_n, rangeOption.days),
                             streak = s.currentStreak
                         )
                     }
-                    item { RangeChips(selected = rangeOption, onSelect = { rangeOption = it }) }
-                    item { SummaryCards(total, avg, goalDays, filtered.size) }
+                    item {
+                        GoalCard(
+                            currentGoal = s.dailyTarget,
+                            onSave = { viewModel.updateGoal(it) }
+                        )
+                    }
+                    item {
+                        RangeChips(
+                            selected = rangeOption,
+                            labels = rangeLabels,
+                            onSelect = { rangeOption = it }
+                        )
+                    }
+                    item {
+                        SummaryCards(
+                            total = total,
+                            avg = avg,
+                            goalDays = goalDays,
+                            totalDays = filtered.size
+                        )
+                    }
+                    item {
+                        BackendStatsRow(
+                            bestDayDate = s.bestDayDate,
+                            bestDaySteps = s.bestDaySteps,
+                            goalCompletionPct = s.goalCompletionPercentage,
+                            averageActiveOnly = s.averageActiveOnly
+                        )
+                    }
                     item {
                         FilterBar(
                             goalFilter = goalFilter,
                             activeOnly = activeOnly,
+                            goalFilterLabels = goalFilterLabels,
                             onGoalFilter = { goalFilter = it },
                             onActiveOnly = { activeOnly = !activeOnly }
                         )
@@ -196,19 +256,216 @@ fun StatsScreen(viewModel: StepViewModel) {
                             goal = s.dailyTarget,
                             avg = avg,
                             chartType = chartType,
+                            chartLabels = chartLabels,
                             onChartType = { chartType = it }
                         )
                     }
                     item {
-                        ListHeader(count = sorted.size, sortMode = sortMode, onSort = {
-                            val modes = SortMode.values()
-                            sortMode = modes[(sortMode.ordinal + 1) % modes.size]
-                        })
+                        ListHeader(
+                            count = sorted.size,
+                            sortLabel = sortLabels[sortMode] ?: "",
+                            onSort = {
+                                val modes = SortMode.entries.toTypedArray()
+                                sortMode = modes[(sortMode.ordinal + 1) % modes.size]
+                            }
+                        )
                     }
                     itemsIndexed(sorted) { _, entry ->
                         DayItem(entry = entry, goal = s.dailyTarget)
                     }
                     item { Spacer(Modifier.height(80.dp)) }
+                }
+            }
+        }
+    }
+}
+
+// ─── Goal card ───────────────────────────────────────────────────────────────
+
+@Composable
+fun GoalCard(currentGoal: Int, onSave: (Int) -> Unit) {
+    var expanded    by remember { mutableStateOf(false) }
+    var inputText   by remember(currentGoal) { mutableStateOf(currentGoal.toString()) }
+    var errorMsg    by remember { mutableStateOf<String?>(null) }
+    var showSuccess by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val strInvalid   = stringResource(R.string.stats_goal_error)
+
+    LaunchedEffect(showSuccess) {
+        if (showSuccess) { delay(2000); showSuccess = false }
+    }
+
+    val progress = (currentGoal.toFloat() / 10_000f).coerceIn(0f, 1f)
+    val progressColor by animateColorAsState(
+        when {
+            progress >= 1f   -> AccentTeal
+            progress >= 0.5f -> AccentAmber
+            else             -> AccentRed
+        }, tween(400), label = "pgColor"
+    )
+    val animatedProgress by animateFloatAsState(progress, tween(600), label = "pgAnim")
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            // ── Header row (tap to expand) ───────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded; errorMsg = null },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.stats_goal_label),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.5.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                    )
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text(
+                            String.format(Locale.US, "%,d", currentGoal),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = progressColor,
+                            letterSpacing = (-0.5).sp
+                        )
+                        Text(
+                            stringResource(R.string.stats_goal_steps_unit),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(bottom = 5.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AnimatedVisibility(visible = showSuccess) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(AccentTealSoft)
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Check, null, tint = AccentTeal, modifier = Modifier.size(13.dp))
+                                Text(stringResource(R.string.stats_goal_saved), fontSize = 11.sp, color = AccentTeal, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                    Icon(
+                        if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // ── Progress bar ─────────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(animatedProgress)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(progressColor)
+                )
+            }
+            Text(
+                stringResource(R.string.stats_goal_benchmark),
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            // ── Expandable edit section ──────────────────────────────────────
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column(modifier = Modifier.padding(top = 14.dp)) {
+                    OutlinedTextField(
+                        value = inputText,
+                        onValueChange = { v ->
+                            if (v.length <= 6 && v.all { it.isDigit() }) {
+                                inputText = v
+                                errorMsg = null
+                            }
+                        },
+                        label = { Text(stringResource(R.string.stats_goal_hint)) },
+                        isError = errorMsg != null,
+                        supportingText = errorMsg?.let { msg -> { Text(msg, color = AccentRed, fontSize = 11.sp) } },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            focusManager.clearFocus()
+                            val v = inputText.toIntOrNull()
+                            if (v == null || v < 1 || v > 100_000) { errorMsg = strInvalid }
+                            else { onSave(v); expanded = false; showSuccess = true; errorMsg = null }
+                        }),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AccentTeal,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+                        )
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AccentTeal)
+                            .clickable {
+                                focusManager.clearFocus()
+                                val v = inputText.toIntOrNull()
+                                if (v == null || v < 1 || v > 100_000) { errorMsg = strInvalid }
+                                else { onSave(v); expanded = false; showSuccess = true; errorMsg = null }
+                            }
+                            .padding(vertical = 13.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            stringResource(R.string.stats_save_goal),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -225,11 +482,16 @@ fun ActivityHeader(rangeLabel: String, streak: Int) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("Activity", fontSize = 24.sp, fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground, letterSpacing = (-0.5).sp)
-            Text(rangeLabel, fontSize = 12.sp,
+            Text(
+                stringResource(R.string.stats_title),
+                fontSize = 24.sp, fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground, letterSpacing = (-0.5).sp
+            )
+            Text(
+                rangeLabel, fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = 2.dp))
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
         if (streak > 0) {
             Box(
@@ -237,8 +499,10 @@ fun ActivityHeader(rangeLabel: String, streak: Int) {
                     .background(AccentTealSoft)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text("🔥 $streak day streak", fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium, color = AccentTeal)
+                Text(
+                    stringResource(R.string.stats_streak_badge, streak),
+                    fontSize = 12.sp, fontWeight = FontWeight.Medium, color = AccentTeal
+                )
             }
         }
     }
@@ -247,14 +511,18 @@ fun ActivityHeader(rangeLabel: String, streak: Int) {
 // ─── Range chips ─────────────────────────────────────────────────────────────
 
 @Composable
-fun RangeChips(selected: RangeOption, onSelect: (RangeOption) -> Unit) {
+fun RangeChips(
+    selected: RangeOption,
+    labels: Map<RangeOption, String>,
+    onSelect: (RangeOption) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        RangeOption.values().forEach { option ->
+        RangeOption.entries.forEach { option ->
             val isActive = option == selected
             val bg by animateColorAsState(
                 if (isActive) MaterialTheme.colorScheme.primaryContainer
@@ -271,7 +539,95 @@ fun RangeChips(selected: RangeOption, onSelect: (RangeOption) -> Unit) {
                     .background(bg).clickable { onSelect(option) }
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
-                Text(option.label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = tc)
+                Text(labels[option] ?: "", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = tc)
+            }
+        }
+    }
+}
+
+// ─── Backend stats row ───────────────────────────────────────────────────────
+
+@Composable
+fun BackendStatsRow(
+    bestDayDate: String?,
+    bestDaySteps: Int?,
+    goalCompletionPct: Double,
+    averageActiveOnly: Double
+) {
+    if (bestDayDate == null && bestDaySteps == null) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Best day
+        if (bestDayDate != null && bestDaySteps != null) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(AccentTealSoft)
+                    .padding(vertical = 12.dp, horizontal = 12.dp)
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.stats_best_day).uppercase(),
+                        fontSize = 10.sp,
+                        letterSpacing = 0.5.sp,
+                        color = AccentTeal.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        bestDaySteps.toShortString(),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentTeal,
+                        letterSpacing = (-0.5).sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                    Text(
+                        formatDate(bestDayDate),
+                        fontSize = 10.sp,
+                        color = AccentTeal.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 1.dp)
+                    )
+                }
+            }
+        }
+
+        // Goal completion %
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(AccentAmberSoft)
+                .padding(vertical = 12.dp, horizontal = 12.dp)
+        ) {
+            Column {
+                Text(
+                    stringResource(R.string.stats_goal_completion).uppercase(),
+                    fontSize = 10.sp,
+                    letterSpacing = 0.5.sp,
+                    color = AccentAmber.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    String.format(Locale.US, "%.1f%%", goalCompletionPct),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AccentAmber,
+                    letterSpacing = (-0.5).sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+                Text(
+                    stringResource(R.string.stats_avg_active),
+                    fontSize = 10.sp,
+                    color = AccentAmber.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 1.dp)
+                )
             }
         }
     }
@@ -285,9 +641,9 @@ fun SummaryCards(total: Int, avg: Int, goalDays: Int, totalDays: Int) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        SummaryCard("Total",     total.toShortString(), AccentTeal,                              Modifier.weight(1f))
-        SummaryCard("Daily avg", avg.toShortString(),   AccentAmber,                             Modifier.weight(1f))
-        SummaryCard("Goal days", "$goalDays/$totalDays",MaterialTheme.colorScheme.onSurface,     Modifier.weight(1f))
+        SummaryCard(stringResource(R.string.stats_card_total),     total.toShortString(), AccentTeal,                          Modifier.weight(1f))
+        SummaryCard(stringResource(R.string.stats_card_daily_avg), avg.toShortString(),   AccentAmber,                        Modifier.weight(1f))
+        SummaryCard(stringResource(R.string.stats_card_goal_days), "$goalDays/$totalDays",MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
     }
 }
 
@@ -315,6 +671,7 @@ fun SummaryCard(label: String, value: String, valueColor: Color, modifier: Modif
 fun FilterBar(
     goalFilter: GoalFilter,
     activeOnly: Boolean,
+    goalFilterLabels: Map<GoalFilter, String>,
     onGoalFilter: (GoalFilter) -> Unit,
     onActiveOnly: () -> Unit
 ) {
@@ -323,10 +680,13 @@ fun FilterBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("SHOW", fontSize = 10.sp, letterSpacing = 0.5.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f))
+        Text(
+            stringResource(R.string.stats_filter_show),
+            fontSize = 10.sp, letterSpacing = 0.5.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+        )
 
-        GoalFilter.values().forEach { f ->
+        GoalFilter.entries.forEach { f ->
             val isActive = f == goalFilter
             val bg by animateColorAsState(
                 if (isActive) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
@@ -342,7 +702,7 @@ fun FilterBar(
                     .background(bg).clickable { onGoalFilter(f) }
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
-                Text(f.label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = tc)
+                Text(goalFilterLabels[f] ?: "", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = tc)
             }
         }
 
@@ -358,7 +718,7 @@ fun FilterBar(
                 .background(toggleBg).clickable { onActiveOnly() }
                 .padding(horizontal = 10.dp, vertical = 5.dp)
         ) {
-            Text("Active only", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = toggleTc)
+            Text(stringResource(R.string.stats_active_only), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = toggleTc)
         }
     }
 }
@@ -366,14 +726,27 @@ fun FilterBar(
 // ─── Chart section ───────────────────────────────────────────────────────────
 
 @Composable
-fun ChartSection(data: List<DayEntry>, goal: Int, avg: Int, chartType: ChartType, onChartType: (ChartType) -> Unit) {
+fun ChartSection(
+    data: List<DayEntry>,
+    goal: Int,
+    avg: Int,
+    chartType: ChartType,
+    chartLabels: Map<ChartType, String>,
+    onChartType: (ChartType) -> Unit
+) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Steps per day", fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.stats_steps_per_day),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                ChartType.values().forEach { type ->
+                ChartType.entries.forEach { type ->
                     val isActive = type == chartType
                     val bg by animateColorAsState(
                         if (isActive) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
@@ -382,17 +755,21 @@ fun ChartSection(data: List<DayEntry>, goal: Int, avg: Int, chartType: ChartType
                         if (isActive) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                         tween(150), label = "ctTc")
-                    Box(modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                        .background(bg).clickable { onChartType(type) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)) {
-                        Text(type.label, fontSize = 11.sp, color = tc)
+                    Box(
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                            .background(bg).clickable { onChartType(type) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(chartLabels[type] ?: "", fontSize = 11.sp, color = tc)
                     }
                 }
             }
         }
         Spacer(Modifier.height(10.dp))
-        Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface).padding(12.dp)) {
+        Box(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface).padding(12.dp)
+        ) {
             when (chartType) {
                 ChartType.Bar  -> BarChart(data, goal, avg)
                 ChartType.Line -> LineChart(data, goal, avg)
@@ -408,7 +785,7 @@ fun ChartSection(data: List<DayEntry>, goal: Int, avg: Int, chartType: ChartType
 fun BarChart(data: List<DayEntry>, goal: Int, avg: Int) {
     if (data.isEmpty()) {
         Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
-            Text("No data", color = MaterialTheme.colorScheme.onSurface.copy(0.3f), fontSize = 13.sp)
+            Text(stringResource(R.string.stats_no_data), color = MaterialTheme.colorScheme.onSurface.copy(0.3f), fontSize = 13.sp)
         }; return
     }
     Canvas(Modifier.fillMaxWidth().height(140.dp)) {
@@ -444,7 +821,7 @@ fun BarChart(data: List<DayEntry>, goal: Int, avg: Int) {
 fun LineChart(data: List<DayEntry>, goal: Int, avg: Int) {
     if (data.isEmpty()) {
         Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
-            Text("No data", color = MaterialTheme.colorScheme.onSurface.copy(0.3f), fontSize = 13.sp)
+            Text(stringResource(R.string.stats_no_data), color = MaterialTheme.colorScheme.onSurface.copy(0.3f), fontSize = 13.sp)
         }; return
     }
     Canvas(Modifier.fillMaxWidth().height(140.dp)) {
@@ -489,7 +866,7 @@ fun LineChart(data: List<DayEntry>, goal: Int, avg: Int) {
 fun HeatmapChart(data: List<DayEntry>, goal: Int) {
     if (data.isEmpty()) {
         Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-            Text("No data", color = MaterialTheme.colorScheme.onSurface.copy(0.3f), fontSize = 13.sp)
+            Text(stringResource(R.string.stats_no_data), color = MaterialTheme.colorScheme.onSurface.copy(0.3f), fontSize = 13.sp)
         }; return
     }
     val maxSteps = data.maxOf { it.steps }.coerceAtLeast(1)
@@ -516,17 +893,26 @@ fun HeatmapChart(data: List<DayEntry>, goal: Int) {
 // ─── List header ─────────────────────────────────────────────────────────────
 
 @Composable
-fun ListHeader(count: Int, sortMode: SortMode, onSort: () -> Unit) {
+fun ListHeader(count: Int, sortLabel: String, onSort: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("$count day${if (count != 1) "s" else ""}", fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
-        Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onSort() }
-            .padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Text("Sort: ${sortMode.label} ↕", fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f))
+        Text(
+            stringResource(R.string.stats_day_count, count),
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+        )
+        Box(
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onSort() }
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                stringResource(R.string.stats_sort_label, sortLabel),
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+            )
         }
     }
 }
@@ -570,17 +956,23 @@ fun DayItem(entry: DayEntry, goal: Int) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             Text(entry.steps.toLocaleString(), fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold, color = stepsColor, letterSpacing = (-0.5).sp)
-            Text(if (empty) "no data" else "$pct% of goal", fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+            Text(
+                if (empty) stringResource(R.string.stats_no_data_label)
+                else stringResource(R.string.stats_pct_of_goal, pct),
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+            )
         }
 
         val (badgeText, badgeBg, badgeFg) = when {
-            empty   -> Triple("rest",     MaterialTheme.colorScheme.onSurface.copy(.04f), MaterialTheme.colorScheme.onSurface.copy(.3f))
-            reached -> Triple("✓ goal",   AccentTealSoft, AccentTeal)
-            else    -> Triple("✗ missed", AccentRedSoft,  AccentRed)
+            empty   -> Triple(stringResource(R.string.stats_badge_rest),   MaterialTheme.colorScheme.onSurface.copy(.04f), MaterialTheme.colorScheme.onSurface.copy(.3f))
+            reached -> Triple(stringResource(R.string.stats_badge_goal),   AccentTealSoft, AccentTeal)
+            else    -> Triple(stringResource(R.string.stats_badge_missed), AccentRedSoft,  AccentRed)
         }
-        Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(badgeBg)
-            .padding(horizontal = 8.dp, vertical = 4.dp)) {
+        Box(
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(badgeBg)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
             Text(badgeText, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = badgeFg)
         }
     }

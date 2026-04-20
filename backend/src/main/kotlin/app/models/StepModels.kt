@@ -26,8 +26,8 @@ data class StepHistorySummaryResponse(
     val dailyTarget: Int,
     val data: List<StepHistoryItem>,
     val total: Int,
-    val average: Double,           // avg over ALL days in range (incl. zero-step days)
-    val averageActiveOnly: Double, // avg over days where steps > 0
+    val average: Double,
+    val averageActiveOnly: Double,
     val daysWithData: Int,
     val goalCompletionPercentage: Double,
     val goalReachedDays: Int,

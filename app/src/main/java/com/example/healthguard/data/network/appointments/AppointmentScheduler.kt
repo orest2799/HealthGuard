@@ -1,6 +1,5 @@
 package com.example.healthguard.data.network.appointments
 
-import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
@@ -24,11 +23,6 @@ class AppointmentScheduler(
     }
 
     fun scheduleAll(appointment: Appointment) {
-        if (!canScheduleExactAlarms()) {
-            Log.w("APPOINTMENT_DEBUG", "Exact alarms not allowed, skipping scheduling")
-            return
-        }
-
         appointment.reminderOffsets.forEachIndexed { index, offset ->
             val triggerTime = appointment.timestamp - offset
 
@@ -56,13 +50,13 @@ class AppointmentScheduler(
             )
 
             try {
-                scheduleExact(triggerTime, pendingIntent)
+                scheduleReminder(triggerTime, pendingIntent)
                 Log.d(
                     "APPOINTMENT_DEBUG",
                     "Scheduled ${appointment.title} reminder at trigger=$triggerTime offset=$offset"
                 )
             } catch (e: SecurityException) {
-                Log.e("APPOINTMENT_DEBUG", "Failed to schedule exact appointment alarm", e)
+                Log.e("APPOINTMENT_DEBUG", "Failed to schedule appointment reminder", e)
             }
         }
     }
@@ -85,16 +79,22 @@ class AppointmentScheduler(
         }
     }
 
-    @SuppressLint("ScheduleExactAlarm")
-    private fun scheduleExact(
+    private fun scheduleReminder(
         triggerTime: Long,
         pendingIntent: PendingIntent
     ) {
-        // Ensure we use RTC_WAKEUP to wake the device if it is asleep
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            triggerTime,
-            pendingIntent
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        } else {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        }
     }
 }

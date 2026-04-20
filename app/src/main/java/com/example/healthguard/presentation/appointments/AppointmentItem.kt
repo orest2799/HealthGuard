@@ -19,7 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.healthguard.R
 import com.example.healthguard.data.network.appointments.Appointment
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -48,17 +50,15 @@ fun AppointmentItem(
                     text = appointment.title,
                     style = MaterialTheme.typography.titleMedium
                 )
-
-                // NEW: Displaying the active reminders
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (appointment.reminderOffsets.contains(24 * 60 * 60 * 1000L)) {
-                        ReminderBadge("24h")
+                        ReminderBadge(stringResource(R.string.appointment_badge_24h))
                     }
                     if (appointment.reminderOffsets.contains(2 * 60 * 60 * 1000L)) {
-                        ReminderBadge("2h")
+                        ReminderBadge(stringResource(R.string.appointment_badge_2h))
                     }
                     if (appointment.reminderOffsets.contains(60 * 60 * 1000L)) {
-                        ReminderBadge("1h")
+                        ReminderBadge(stringResource(R.string.appointment_badge_1h))
                     }
                 }
             }
@@ -77,17 +77,16 @@ fun AppointmentItem(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.appointment_edit_action))
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.appointment_delete_action))
                 }
             }
         }
     }
 }
 
-// Helper Composable for the small reminder labels
 @Composable
 fun ReminderBadge(text: String) {
     Surface(

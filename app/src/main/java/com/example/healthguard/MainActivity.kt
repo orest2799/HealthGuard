@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.net.toUri
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -25,13 +26,15 @@ import com.example.healthguard.data.network.appointments.AppointmentNotification
 import com.example.healthguard.data.network.appointments.AppointmentRestoreManager
 import com.example.healthguard.data.network.dto.ApiClient
 import com.example.healthguard.data.network.dto.ChatRequest
+import com.example.healthguard.data.network.pills.PillNotificationHelper
+import com.example.healthguard.data.network.pills.PillReminderRestoreManager
 import com.example.healthguard.data.network.steps.Injection
 import com.example.healthguard.data.network.steps.StepSensorManager
 import com.example.healthguard.data.network.steps.StepTrackingService
-import com.example.healthguard.domain.model.pills.notifications.PillNotificationHelper
-import com.example.healthguard.domain.model.pills.notifications.PillReminderRestoreManager
 import com.example.healthguard.ui.theme.AppTheme
 import com.example.healthguard.viewmodel.ChatViewModel
+import com.example.healthguard.viewmodel.GalleryViewModel
+import com.example.healthguard.viewmodel.LanguageViewModel
 import com.example.healthguard.viewmodel.StepViewModel
 import com.example.healthguard.viewmodel.StepViewModelFactory
 import com.example.healthguard.viewmodel.ThemeViewModel
@@ -41,6 +44,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.database.BuildConfig
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.launch
 
@@ -49,15 +53,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var credentialManager: CredentialManager
     private val userViewModel: UserViewModel by viewModels()
     private val themeViewModel: ThemeViewModel by viewModels()
-
+    private val languageViewModel: LanguageViewModel by viewModels()
     private val stepViewModel: StepViewModel by viewModels {
-        // Get the current uid at ViewModel creation time.
-        // If no user is logged in yet, we pass "" and the repo will use
-        // an anonymous prefs file — it will be replaced on first login.
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
         StepViewModelFactory(Injection.provideStepRepository(this, uid))
     }
-
+    private val galleryViewModel: GalleryViewModel by viewModels()
     private lateinit var stepSensorManager: StepSensorManager
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -130,8 +131,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        ensureExactAlarmPermission()
-        ensureFullScreenIntentPermission()
+        languageViewModel.applyCurrentLocale(this)
+
         credentialManager = CredentialManager.create(this)
 
         PillNotificationHelper(this).createNotificationChannel()
@@ -141,21 +142,29 @@ class MainActivity : ComponentActivity() {
             stepViewModel.onStepDetected(totalSteps)
         }
         StepTrackingService.start(this)
+
         setContent {
-            val isDarkTheme = themeViewModel.isDarkTheme.collectAsState().value
+            val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
+
+            // key(language) has been removed — it was destroying the entire composable
+            // tree on every language toggle, causing LaunchedEffects to re-fire and
+            // overwrite the chat's per-session language. The locale is already applied
+            // via languageViewModel.applyCurrentLocale() / applyLocale(), so strings
+            // recompose correctly without needing key().
             AppTheme(darkTheme = isDarkTheme) {
                 MyApp(
                     userViewModel = userViewModel,
                     themeViewModel = themeViewModel,
+                    languageViewModel = languageViewModel,
                     chatVm = chatViewModel,
                     stepViewModel = stepViewModel,
+                    galleryViewModel = galleryViewModel,
                     onGoogleSignIn = { signInWithGoogle() }
                 )
             }
         }
 
         lifecycleScope.launch {
-            requestNotificationPermissionIfNeeded()
             restorePillRemindersIfLoggedIn()
             restoreAppointmentsIfLoggedIn()
 
@@ -203,8 +212,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ── Sign in ───────────────────────────────────────────────────────────────
-
     fun signInWithGoogle() = lifecycleScope.launch {
         if (!trySignIn(filterAuthorizedOnly = true)) {
             trySignIn(filterAuthorizedOnly = false)
@@ -242,8 +249,6 @@ class MainActivity : ComponentActivity() {
                 if (task.isSuccessful) {
                     val firebaseUser = FirebaseAuth.getInstance().currentUser
                     firebaseUser?.let { user ->
-
-
                         Injection.reset()
 
                         val nameParts = user.displayName?.split(" ")
@@ -266,7 +271,6 @@ class MainActivity : ComponentActivity() {
                             AppointmentRestoreManager().restoreAll(this@MainActivity)
                         }
 
-
                         stepViewModel.loadDashboardData()
 
                         Toast.makeText(this, "Welcome ${profile.firstName}!", Toast.LENGTH_SHORT).show()
@@ -274,7 +278,4 @@ class MainActivity : ComponentActivity() {
                 }
             }
     }
-
-
-
 }

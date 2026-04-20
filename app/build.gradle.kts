@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.play.services.location)
+    implementation(libs.androidx.appcompat)
     val room_version = "2.6.1"
     // 2. Core AndroidX - Accessors mapped from your TOML
     implementation(libs.androidx.core.ktx)

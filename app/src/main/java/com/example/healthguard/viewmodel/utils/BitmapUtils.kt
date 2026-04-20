@@ -6,7 +6,7 @@ import android.graphics.Matrix
 import android.media.ExifInterface
 import java.io.FileInputStream
 
-/** Decode a file and rotate it according to EXIF so it’s upright. */
+
 fun decodeAndFixOrientation(path: String): Bitmap {
     val stream = FileInputStream(path)
     val bmp = BitmapFactory.decodeStream(stream).also { stream.close() }

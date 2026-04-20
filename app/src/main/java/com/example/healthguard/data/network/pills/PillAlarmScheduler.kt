@@ -6,9 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-import com.example.healthguard.domain.model.pills.notifications.PillNotificationConstants
-import com.example.healthguard.domain.model.pills.notifications.PillReminderPayload
-import com.example.healthguard.domain.model.pills.notifications.PillReminderReceiver
 import java.util.Calendar
 
 class PillAlarmScheduler(
@@ -18,8 +15,23 @@ class PillAlarmScheduler(
     private val alarmManager: AlarmManager =
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
+    fun canScheduleExactAlarms(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
+        }
+    }
+
     fun scheduleAll(reminder: PillReminder) {
         if (!reminder.enabled) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()
+        ) {
+            Log.w("PILL_DEBUG", "Exact alarms not allowed -> skipping pill scheduling")
+            return
+        }
 
         reminder.reminderTimes.forEach { reminderTime ->
             reminderTime.daysOfWeek.forEach { dayOfWeek ->
@@ -51,37 +63,35 @@ class PillAlarmScheduler(
             }
         }
     }
+
     private fun scheduleExact(payload: PillReminderPayload) {
         val pendingIntent = buildPendingIntent(payload)
         val triggerTime = calculateNextTriggerTime(payload.dayOfWeek, payload.hour, payload.minute)
 
-        Log.d("PILL_DEBUG", "Scheduling ${payload.medicineName} for day=${payload.dayOfWeek}, time=${payload.hour}:${payload.minute}, trigger=$triggerTime")
+        Log.d(
+            "PILL_DEBUG",
+            "Scheduling ${payload.medicineName} for day=${payload.dayOfWeek}, time=${payload.hour}:${payload.minute}, trigger=$triggerTime"
+        )
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
-                    )
-                } else {
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
-                    )
-                }
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
-                )
-            }
-        } catch (e: SecurityException) {
-            Log.e("PILL_DEBUG", "Exact alarm permission error (using inexact fallback)", e)
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
             )
+        } catch (e: SecurityException) {
+            Log.e("PILL_DEBUG", "Exact alarm permission error", e)
         }
     }
 
     fun scheduleNextWeek(payload: PillReminderPayload) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()
+        ) {
+            Log.w("PILL_DEBUG", "Exact alarms not allowed -> skipping next-week reschedule")
+            return
+        }
+
         val pendingIntent = buildPendingIntent(payload)
         val triggerAtMillis = Calendar.getInstance().apply {
             set(Calendar.DAY_OF_WEEK, payload.dayOfWeek)
@@ -92,29 +102,19 @@ class PillAlarmScheduler(
             add(Calendar.WEEK_OF_YEAR, 1)
         }.timeInMillis
 
-        Log.d("PILL_DEBUG", "Rescheduling next week for ${payload.medicineName}, day=${payload.dayOfWeek}, time=${payload.hour}:${payload.minute}")
+        Log.d(
+            "PILL_DEBUG",
+            "Rescheduling next week for ${payload.medicineName}, day=${payload.dayOfWeek}, time=${payload.hour}:${payload.minute}"
+        )
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
-                    )
-                } else {
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
-                    )
-                }
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
-                )
-            }
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
         } catch (e: SecurityException) {
             Log.e("PILL_DEBUG", "Exact alarm permission error on reschedule", e)
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent
-            )
         }
     }
 

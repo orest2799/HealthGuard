@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HealthGuard</string>
+    <string name="capture">Λήψη</string>
+    <string name="back">Πίσω</string>
+    <string name="image">Εικόνα</string>
+    <string name="default_web_client_id">192038493071-sae3sbgluh3hj9qjm9ph4ned64ivtepb.apps.googleusercontent.com</string>
+
+    <!-- Language switcher -->
+    <string name="lang_toggle">🇬🇧 EN</string>
+
+    <!-- Login screen -->
+    <string name="login_title">Σύνδεση στον Λογαριασμό σας</string>
+    <string name="login_email">Email</string>
+    <string name="login_password">Κωδικός</string>
+    <string name="login_forgot_password">Ξεχάσατε τον κωδικό;</string>
+    <string name="login_button">Σύνδεση</string>
+    <string name="login_or_continue">ή συνεχίστε με</string>
+    <string name="login_google">Συνέχεια με Google</string>
+    <string name="login_no_account">Δεν έχετε λογαριασμό; </string>
+    <string name="login_sign_up">Εγγραφή</string>
+    <string name="login_email_required">Απαιτείται email</string>
+    <string name="login_email_invalid">Εισάγετε έγκυρο email</string>
+    <string name="login_password_required">Απαιτείται κωδικός</string>
+    <string name="login_failed">Αποτυχία σύνδεσης: </string>
+    <string name="login_welcome">Καλώς ήρθατε %s!</string>
+
+    <!-- Forgot password dialog -->
+    <string name="forgot_title">Επαναφορά Κωδικού</string>
+    <string name="forgot_description">Εισάγετε το email σας και θα σας στείλουμε σύνδεσμο επαναφοράς κωδικού.</string>
+    <string name="forgot_send">Αποστολή Συνδέσμου</string>
+    <string name="forgot_cancel">Άκυρο</string>
+    <string name="forgot_success">Στάλθηκε email επαναφοράς! Ελέγξτε τα εισερχόμενά σας.</string>
+    <string name="forgot_no_account">Δεν βρέθηκε λογαριασμός με αυτό το email</string>
+    <string name="forgot_failed">Αποτυχία αποστολής email επαναφοράς</string>
+
+    <!-- Sign up screen -->
+    <string name="signup_title">Δημιουργία Λογαριασμού</string>
+    <string name="signup_first_name">Όνομα</string>
+    <string name="signup_last_name">Επώνυμο</string>
+    <string name="signup_birthday">Ημερομηνία Γέννησης</string>
+    <string name="signup_confirm_password">Επιβεβαίωση Κωδικού</string>
+    <string name="signup_button">Εγγραφή</string>
+    <string name="signup_google">Εγγραφή με Google</string>
+    <string name="signup_has_account">Έχετε ήδη λογαριασμό; </string>
+    <string name="signup_login">Σύνδεση</string>
+    <string name="signup_first_name_required">Απαιτείται όνομα</string>
+    <string name="signup_last_name_required">Απαιτείται επώνυμο</string>
+    <string name="signup_email_invalid">Εισάγετε έγκυρο email</string>
+    <string name="signup_birthday_required">Παρακαλώ επιλέξτε ημερομηνία γέννησης</string>
+    <string name="signup_password_rules">8+ χαρακτήρες, 1 κεφαλαίο, 1 αριθμός, 1 σύμβολο</string>
+    <string name="signup_passwords_no_match">Οι κωδικοί δεν ταιριάζουν</string>
+    <string name="signup_success">Ο λογαριασμός δημιουργήθηκε</string>
+    <string name="signup_uid_null">Το ID χρήστη είναι null μετά την εγγραφή</string>
+    <string name="signup_email_collision">Υπάρχει ήδη λογαριασμός με αυτό το email.</string>
+
+    <!-- Home screen -->
+    <string name="home_settings">Ρυθμίσεις</string>
+    <string name="home_appearance">Εμφάνιση</string>
+    <string name="home_light_theme">Φωτεινό θέμα</string>
+    <string name="home_dark_theme">Σκοτεινό θέμα</string>
+    <string name="home_language">Γλώσσα</string>
+    <string name="home_sign_out">Αποσύνδεση</string>
+    <string name="home_welcome">Καλώς ήρθατε, %s</string>
+    <string name="home_scan_medicine">Σάρωση Φαρμάκου</string>
+    <string name="home_todays_pills">Χάπια Σήμερα</string>
+    <string name="home_appointments">Ραντεβού</string>
+    <string name="home_health_stats">Στατιστικά Υγείας</string>
+    <string name="home_emergency">Επείγον</string>
+    <string name="home_gallery">Γκαλερί</string>
+    <string name="home_connected">Σύνδεση με διακομιστή ✅</string>
+
+    <!-- Appointment screens -->
+    <string name="appointment_list_title">Τα Ραντεβού μου</string>
+    <string name="appointment_add_fab">Προσθήκη</string>
+    <string name="appointment_empty">Δεν υπάρχουν ραντεβού.\nΠατήστε + για να προσθέσετε.</string>
+    <string name="appointment_section_today">Σήμερα</string>
+    <string name="appointment_section_upcoming">Επερχόμενα</string>
+    <string name="appointment_new">Νέο Ραντεβού</string>
+    <string name="appointment_edit">Επεξεργασία Ραντεβού</string>
+    <string name="appointment_title">Τίτλος</string>
+    <string name="appointment_location">Τοποθεσία</string>
+    <string name="appointment_date">Ημερομηνία: %s</string>
+    <string name="appointment_time">Ώρα: %s</string>
+    <string name="appointment_reminders">Υπενθυμίσεις</string>
+    <string name="appointment_reminder_24h">24 ώρες πριν</string>
+    <string name="appointment_reminder_2h">2 ώρες πριν</string>
+    <string name="appointment_reminder_1h">1 ώρα πριν</string>
+    <string name="appointment_save">Αποθήκευση Ραντεβού</string>
+    <string name="appointment_update">Ενημέρωση Ραντεβού</string>
+    <string name="appointment_saved">Αποθηκεύτηκε!</string>
+    <string name="appointment_badge_24h">24ω</string>
+    <string name="appointment_badge_2h">2ω</string>
+    <string name="appointment_badge_1h">1ω</string>
+    <string name="appointment_edit_action">Επεξεργασία</string>
+    <string name="appointment_delete_action">Διαγραφή</string>
+    <string name="appointment_notification_title">Επερχόμενο ραντεβού</string>
+    <string name="appointment_notification_message">Το ραντεβού "%1$s" είναι προγραμματισμένο %2$s στις %3$s</string>
+    <string name="appointment_offset_24h">σε 24 ώρες</string>
+    <string name="appointment_offset_2h">σε 2 ώρες</string>
+    <string name="appointment_offset_1h">σε 1 ώρα</string>
+    <string name="appointment_offset_soon">σύντομα</string>
+
+    <string name="appointment_exact_alarm_title">Απαιτείται άδεια υπενθυμίσεων</string>
+    <string name="appointment_exact_alarm_message">Για να λαμβάνετε υπενθυμίσεις ραντεβού στην σωστή ώρα, επιτρέψτε τα ακριβή alarms από τις ρυθμίσεις του συστήματος.</string>
+    <string name="appointment_exact_alarm_settings">Άνοιγμα ρυθμίσεων</string>
+
+    <string name="common_cancel">Ακύρωση</string>
+    <!-- Stats screen -->
+    <string name="stats_title">Παρακολούθηση Δραστηριότητας</string>
+    <string name="stats_goal_label">Ημερήσιος Στόχος Βημάτων</string>
+    <string name="stats_goal_hint">Στόχος (βήματα)</string>
+    <string name="stats_refresh">Ανανέωση</string>
+    <string name="stats_save_goal">Αποθήκευση Στόχου</string>
+    <string name="stats_goal_error">Βάλε έναν έγκυρο αριθμό (1–100000).</string>
+    <string name="stats_weekly_avg">Εβδ. Μέσος</string>
+    <string name="stats_monthly_total">Μηνιαίο Σύνολο</string>
+    <string name="stats_streak">Σερί Ημερών</string>
+    <string name="stats_goal_reached">Στόχος Επιτεύχθη</string>
+    <string name="stats_goal_completion">Ολοκλήρωση Στόχου</string>
+    <string name="stats_avg_active">Μέσος (ενεργές ημέρες)</string>
+    <string name="stats_best_day">Καλύτερη Ημέρα</string>
+    <string name="stats_days_suffix"> ημέρες</string>
+    <string name="stats_of_steps">από %d βήματα</string>
+
+    <!-- Pill screens -->
+    <string name="pill_reminder_saved">Υπενθύμιση φαρμάκου αποθηκεύτηκε</string>
+    <string name="pill_edit_title">Επεξεργασία Υπενθύμισης</string>
+    <string name="pill_add_title">Νέα Υπενθύμιση Φαρμάκου</string>
+    <string name="pill_medicine_info">Στοιχεία Φαρμάκου</string>
+    <string name="pill_medicine_name">Όνομα φαρμάκου</string>
+    <string name="pill_dosage">Δοσολογία</string>
+    <string name="pill_schedule">Πρόγραμμα</string>
+    <string name="pill_days_of_week">Ημέρες εβδομάδας</string>
+    <string name="pill_reminder_times">Ώρες υπενθύμισης</string>
+    <string name="pill_add_time">Προσθήκη ώρας</string>
+    <string name="pill_options">Επιλογές</string>
+    <string name="pill_reminder_enabled">Υπενθύμιση ενεργή</string>
+    <string name="pill_exact_alarm_warning">Παρακαλώ επιτρέψτε τις ακριβείς ειδοποιήσεις και επιστρέψτε για αποθήκευση.</string>
+    <string name="pill_saving">Αποθήκευση…</string>
+    <string name="pill_update_reminder">Ενημέρωση Υπενθύμισης</string>
+    <string name="pill_save_reminder">Αποθήκευση Υπενθύμισης</string>
+    <string name="pill_list_title">Υπενθυμίσεις Φαρμάκων</string>
+    <string name="pill_list_empty">Δεν υπάρχουν υπενθυμίσεις.\nΠατήστε + για να προσθέσετε.</string>
+    <string name="pill_all_reminders">Όλες οι Υπενθυμίσεις</string>
+    <string name="pill_summary_title">Σημερινή Επισκόπηση</string>
+    <string name="pill_summary_doses">%1$d/%2$d δόσεις ολοκληρώθηκαν</string>
+    <string name="pill_summary_active">Ενεργές υπενθυμίσεις: %d</string>
+    <string name="pill_summary_today_count">Φάρμακα για σήμερα: %d</string>
+    <string name="pill_next_time">Επόμενη: %s</string>
+    <string name="pill_no_days">Δεν επιλέχθηκαν ημέρες</string>
+    <string name="pill_edit_action">Επεξεργασία</string>
+    <string name="pill_delete_action">Διαγραφή</string>
+    <string name="pill_marked_taken">Σημειώθηκε ως ληφθέν</string>
+    <string name="pill_snoozed_10min">Αναβλήθηκε για 10 λεπτά</string>
+    <string name="pill_channel_name">Υπενθυμίσεις Φαρμάκων</string>
+    <string name="pill_channel_description">Ειδοποιήσεις για υπενθυμίσεις φαρμάκων</string>
+    <string name="permissions_required_title">Απαραίτητες Ρυθμίσεις</string>
+    <string name="permissions_required_message">Για να εμφανίζεται η οθόνη υπενθύμισης:\n\n• Εμφάνιση στην οθόνη κλειδώματος\n• Άνοιγμα νέων παραθύρων στο παρασκήνιο\n• Αναδυόμενα παράθυρα</string>
+    <string name="open_settings">Άνοιγμα Ρυθμίσεων</string>
+    <string name="cancel">Ακύρωση</string>
+
+    <!-- Pill ViewModel validation errors (used via context.getString) -->
+    <string name="pill_error_name_required">Απαιτείται όνομα φαρμάκου</string>
+    <string name="pill_error_dosage_required">Απαιτείται δοσολογία</string>
+    <string name="pill_error_time_required">Προσθέστε τουλάχιστον μία ώρα</string>
+    <string name="pill_error_days_required">Επιλέξτε τουλάχιστον μία ημέρα</string>
+    <string name="pill_error_sign_in">Παρακαλώ συνδεθείτε πρώτα</string>
+    <string name="pill_error_load_failed">Αποτυχία φόρτωσης υπενθύμισης</string>
+    <string name="pill_error_save_failed">Αποτυχία αποθήκευσης υπενθύμισης</string>
+
+    <!-- Day selector -->
+    <string name="day_mon">Δευ</string>
+    <string name="day_tue">Τρί</string>
+    <string name="day_wed">Τετ</string>
+    <string name="day_thu">Πέμ</string>
+    <string name="day_fri">Παρ</string>
+    <string name="day_sat">Σάβ</string>
+    <string name="day_sun">Κυρ</string>
+
+    <!-- Alarm screen -->
+    <string name="alarm_snooze">Αναβολή</string>
+    <string name="alarm_taken">Λήφθηκε</string>
+    <string name="pill_notification_title">Υπενθύμιση Χαπιού</string>
+    <string name="pill_notification_body">Ώρα να πάρετε %1$s από %2$s</string>
+
+    <!-- Emergency screens -->
+    <string name="emergency_title">Επείγον SOS</string>
+    <string name="emergency_mode_active">Λειτουργία Έκτακτης Ανάγκης Ενεργή</string>
+    <string name="emergency_no_contacts_title">Δεν υπάρχουν Επαφές Έκτακτης Ανάγκης</string>
+    <string name="emergency_no_contacts_desc">Πρέπει να προσθέσετε τουλάχιστον μία επαφή για να χρησιμοποιήσετε το SOS.</string>
+    <string name="emergency_add_first_contact">Προσθήκη Πρώτης Επαφής</string>
+    <string name="emergency_call_cta">ΚΑΛΕΣΤΕ ΤΩΡΑ ΤΗΝ ΚΥΡΙΑ ΕΠΑΦΗ</string>
+    <string name="emergency_contacts_hint">Επαφές (Κρατήστε για μετακίνηση στην κορυφή)</string>
+    <string name="emergency_footer">Το SOS στέλνει SMS με την τοποθεσία σας. Πατήστε «Κλήση» για χειροκίνητη κλήση.</string>
+    <string name="emergency_add_contact_cd">Προσθήκη επαφής</string>
+    <string name="emergency_delete_cd">Διαγραφή</string>
+    <string name="emergency_edit_cd">Επεξεργασία</string>
+    <string name="emergency_back_cd">Πίσω</string>
+
+    <!-- Emergency setup screen -->
+    <string name="emergency_setup_add_title">Προσθήκη Επαφής</string>
+    <string name="emergency_setup_edit_title">Επεξεργασία Επαφής</string>
+    <string name="emergency_setup_first_name">Όνομα</string>
+    <string name="emergency_setup_last_name">Επώνυμο</string>
+    <string name="emergency_setup_phone">Αριθμός Τηλεφώνου</string>
+    <string name="emergency_setup_save">Αποθήκευση &amp; Ολοκλήρωση</string>
+    <string name="location_unavailable">Μη διαθέσιμη τοποθεσία (Απώλεια σήματος GPS)</string>
+    <string name="emergency_message_prefix">ΕΠΕΙΓΟΝ! Χρειάζομαι βοήθεια. Η τοποθεσία μου:</string>
+
+    <!-- Stats screen — range chips -->
+    <string name="stats_range_today">Σήμερα</string>
+    <string name="stats_range_7days">7 ημέρες</string>
+    <string name="stats_range_30days">30 ημέρες</string>
+    <string name="stats_range_3months">3 μήνες</string>
+    <string name="stats_range_6months">6 μήνες</string>
+    <string name="stats_range_last_n">Τελευταίες %d ημέρες</string>
+
+    <!-- Stats screen — filters & sort -->
+    <string name="stats_filter_show">ΕΜΦΑΝΙΣΗ</string>
+    <string name="stats_filter_all">Όλα</string>
+    <string name="stats_filter_reached">✓ Στόχος</string>
+    <string name="stats_filter_missed">✗ Χάθηκε</string>
+    <string name="stats_active_only">Μόνο ενεργές</string>
+    <string name="stats_sort_newest">Νεότερες</string>
+    <string name="stats_sort_oldest">Παλαιότερες</string>
+    <string name="stats_sort_most">Περισσότερα βήματα</string>
+    <string name="stats_sort_least">Λιγότερα βήματα</string>
+    <string name="stats_sort_label">Ταξινόμηση: %s ↕</string>
+
+    <!-- Stats screen — chart -->
+    <string name="stats_chart_bar">Ράβδοι</string>
+    <string name="stats_chart_line">Γραμμή</string>
+    <string name="stats_chart_heat">Θερμότητα</string>
+    <string name="stats_steps_per_day">Βήματα ανά ημέρα</string>
+
+    <!-- Stats screen — summary cards -->
+    <string name="stats_card_total">Σύνολο</string>
+    <string name="stats_card_daily_avg">Ημερ. μέσος</string>
+    <string name="stats_card_goal_days">Ημέρες στόχου</string>
+
+    <!-- Stats screen — list & day items -->
+    <string name="stats_loading">Φόρτωση…</string>
+    <string name="stats_no_data">Χωρίς δεδομένα</string>
+    <string name="stats_no_data_label">χωρίς δεδομένα</string>
+    <string name="stats_day_count">%d ημέρες</string>
+    <string name="stats_pct_of_goal">%d%% του στόχου</string>
+    <string name="stats_badge_rest">ανάπαυση</string>
+    <string name="stats_badge_goal">✓ στόχος</string>
+    <string name="stats_badge_missed">✗ χάθηκε</string>
+    <string name="stats_streak_badge">🔥 %d ημέρες σερί</string>
+
+    <string name="stats_goal_steps_unit">βήματα / ημέρα</string>
+    <string name="stats_goal_benchmark">Ο ΠΟΥ συνιστά 10.000 βήματα/ημέρα</string>
+    <string name="stats_goal_saved">Αποθηκεύτηκε</string>
+
+    <string name="stats_best_day_format">%s: %d βήματα</string>
+
+    <!-- Camera screen -->
+    <string name="camera_permission_required">Απαιτείται άδεια κάμερας</string>
+    <string name="camera_back">Πίσω</string>
+    <string name="camera_open_gallery">Άνοιγμα Γκαλερί</string>
+    <string name="camera_flip">Εναλλαγή Κάμερας</string>
+    <!-- Gallery -->
+    <string name="gallery_title">Γκαλερί</string>
+    <string name="gallery_no_images">Δεν βρέθηκαν εικόνες.</string>
+    <string name="gallery_info">Πληροφορίες</string>
+    <string name="gallery_delete">Διαγραφή</string>
+    <string name="gallery_cancel">Άκυρο</string>
+    <string name="gallery_delete_confirm">Διαγραφή εικόνας;</string>
+
+    <!-- Chat -->
+    <string name="chat_title">Φαρμακευτικός Βοηθός</string>
+    <string name="chat_placeholder">Ρωτήστε κάτι άλλο…</string>
+    <string name="chat_send">Αποστολή</string>
+    <string name="chat_delete_title">Διαγραφή συνομιλίας;</string>
+    <string name="chat_delete_body">Είστε σίγουροι ότι θέλετε να καθαρίσετε το ιστορικό;</string>
+    <string name="chat_delete_confirm">Διαγραφή</string>
+    <string name="chat_cancel">Ακύρωση</string>
+    <string name="chat_sources">Πηγές:</string>
+    <string name="chat_typing">Ο HealthGuard αναζητά πληροφορίες…</string>
+    <string name="chat_error_image">Παρουσιάστηκε σφάλμα κατά την επεξεργασία της εικόνας.</string>
+    <string name="chat_error_connection">Αδυναμία σύνδεσης με τον διακομιστή HealthGuard.</string>
+    <string name="chat_error_system">Σφάλμα συστήματος.</string>
+    <string name="chat_lang_toggle">🇬🇧 EN</string>
+    <string name="chat_lang_toggle_en">🇬🇧 EN</string>
+    <string name="chat_lang_toggle_gr">🇬🇷 GR</string>
+    <!-- Chat quick actions -->
+    <string name="qa_side_effects_title">Παρενέργειες</string>
+    <string name="qa_side_effects_msg">Ποιες είναι οι παρενέργειες για αυτό το φάρμακο; Δώσε πλήρη λίστα και πότε να ζητήσω βοήθεια.</string>
+    <string name="qa_dosage_title">Δοσολογία</string>
+    <string name="qa_dosage_msg">Ποια είναι η δοσολογία; Δώσε τυπικές οδηγίες και σημαντικές προειδοποιήσεις.</string>
+    <string name="qa_contraindications_title">Αντενδείξεις</string>
+    <string name="qa_contraindications_msg">Ποιες είναι οι αντενδείξεις και ποιοι πρέπει να το αποφεύγουν;</string>
+    <string name="qa_missed_dose_title">Ξέχασα τα χάπια μου</string>
+    <string name="qa_missed_dose_msg">Ξέχασα μια δόση. Τι να κάνω; Δώσε πρακτικές οδηγίες και τι να αποφύγω.</string>
+</resources>

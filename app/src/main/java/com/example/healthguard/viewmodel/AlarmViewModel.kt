@@ -9,9 +9,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.healthguard.data.network.pills.AlarmState
 import com.example.healthguard.data.network.pills.PillLogFirebaseDataSource
+import com.example.healthguard.data.network.pills.PillNotificationConstants
+import com.example.healthguard.data.network.pills.PillReminderReceiver
 import com.example.healthguard.data.network.pills.buildTimeKey
-import com.example.healthguard.domain.model.pills.notifications.PillNotificationConstants
-import com.example.healthguard.domain.model.pills.notifications.PillReminderReceiver
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -92,6 +92,13 @@ class AlarmViewModel : ViewModel() {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+                !alarmManager.canScheduleExactAlarms()
+            ) {
+                onDone()
+                return
+            }
+
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime,

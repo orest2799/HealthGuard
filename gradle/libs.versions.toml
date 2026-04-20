@@ -52,6 +52,7 @@ firebaseFirestoreKtxVersion = "26.1.2"
 datastoreCore = "1.2.1"
 datastorePreferencesCoreJvmVersion = "1.2.1"
 playServicesLocation = "21.3.0"
+appcompat = "1.7.1"
 [libraries]
 # Core AndroidX
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -132,6 +133,7 @@ google-firebase-firestore-ktx = { group = "com.google.firebase", name = "firebas
 datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastoreCore" }
 datastore-preferences-core-jvm = { group = "androidx.datastore", name = "datastore-preferences-core-jvm", version.ref = "datastorePreferencesCoreJvmVersion" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

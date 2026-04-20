@@ -11,7 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.healthguard.R
 import com.example.healthguard.data.network.pills.PillReminder
 import java.util.Calendar
 
@@ -42,12 +44,12 @@ fun PillSummaryCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Today's Overview",
+                text = stringResource(R.string.pill_summary_title),
                 style = MaterialTheme.typography.titleMedium
             )
 
             Text(
-                text = "$takenToday/$totalToday doses completed",
+                text = stringResource(R.string.pill_summary_doses, takenToday, totalToday),
                 style = MaterialTheme.typography.headlineSmall
             )
 
@@ -57,12 +59,12 @@ fun PillSummaryCard(
             )
 
             Text(
-                text = "Active reminders: ${reminders.count { it.enabled }}",
+                text = stringResource(R.string.pill_summary_active, reminders.count { it.enabled }),
                 style = MaterialTheme.typography.bodyMedium
             )
 
             Text(
-                text = "Medicines for today: $todayCount",
+                text = stringResource(R.string.pill_summary_today_count, todayCount),
                 style = MaterialTheme.typography.bodyMedium
             )
         }

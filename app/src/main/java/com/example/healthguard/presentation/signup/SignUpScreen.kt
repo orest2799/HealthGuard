@@ -1,13 +1,15 @@
 package com.example.healthguard.presentation.signup
 
-
+import android.app.Activity
 import android.app.DatePickerDialog
 import android.util.Patterns
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +58,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.healthguard.R
+import com.example.healthguard.viewmodel.LanguageViewModel
 import com.example.healthguard.viewmodel.UserProfile
 import com.example.healthguard.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -62,12 +66,12 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.database.FirebaseDatabase
 import java.util.Calendar
 
-
 @Composable
 fun SignUpScreen(
     navController: NavController,
     userViewModel: UserViewModel,
-    onGoogleSignIn: () -> Unit
+    onGoogleSignIn: () -> Unit,
+    languageViewModel: LanguageViewModel
 ) {
     val context = LocalContext.current
     val auth = remember { FirebaseAuth.getInstance() }
@@ -81,7 +85,6 @@ fun SignUpScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
-    // Inline errors
     var firstNameErr by remember { mutableStateOf<String?>(null) }
     var lastNameErr by remember { mutableStateOf<String?>(null) }
     var emailErr by remember { mutableStateOf<String?>(null) }
@@ -91,7 +94,17 @@ fun SignUpScreen(
 
     val scrollState = rememberScrollState()
 
-    // Navigate when signed in (covers Google flow too)
+    // Pre-read strings for use inside non-Composable callbacks
+    val strFirstNameRequired = stringResource(R.string.signup_first_name_required)
+    val strLastNameRequired  = stringResource(R.string.signup_last_name_required)
+    val strEmailInvalid      = stringResource(R.string.signup_email_invalid)
+    val strBirthdayRequired  = stringResource(R.string.signup_birthday_required)
+    val strPasswordWeak      = stringResource(R.string.signup_password_rules)
+    val strPasswordMismatch  = stringResource(R.string.signup_passwords_no_match)
+    val strAccountCreated    = stringResource(R.string.signup_success)
+    val strEmailCollision    = stringResource(R.string.signup_email_collision)
+    val strUidNull           = stringResource(R.string.signup_uid_null)
+
     val isSignedIn by userViewModel.isSignedIn.collectAsState()
     LaunchedEffect(isSignedIn) {
         if (isSignedIn) {
@@ -101,7 +114,6 @@ fun SignUpScreen(
         }
     }
 
-    // Date picker
     val calendar = remember { Calendar.getInstance() }
     val showDatePicker = {
         DatePickerDialog(
@@ -118,33 +130,18 @@ fun SignUpScreen(
 
     fun validate(): Boolean {
         var ok = true
-        firstNameErr = null
-        lastNameErr = null
-        emailErr = null
-        birthdayErr = null
-        passwordErr = null
-        confirmErr = null
+        firstNameErr = null; lastNameErr = null; emailErr = null
+        birthdayErr = null; passwordErr = null; confirmErr = null
 
-        if (firstName.isBlank()) { firstNameErr = "First name required"; ok = false }
-        if (lastName.isBlank()) { lastNameErr = "Last name required"; ok = false }
-
+        if (firstName.isBlank()) { firstNameErr = strFirstNameRequired; ok = false }
+        if (lastName.isBlank())  { lastNameErr  = strLastNameRequired;  ok = false }
         if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailErr = "Enter a valid email"; ok = false
+            emailErr = strEmailInvalid; ok = false
         }
-
-        if (birthday.isBlank()) {
-            birthdayErr = "Please select your birthday"; ok = false
-        }
-
+        if (birthday.isBlank()) { birthdayErr = strBirthdayRequired; ok = false }
         val regex = Regex("^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+=<>?]).{8,}$")
-        if (!regex.matches(password)) {
-            passwordErr = "8+ chars, 1 capital, 1 number, 1 symbol"
-            ok = false
-        }
-        if (confirmPassword != password) {
-            confirmErr = "Passwords do not match"
-            ok = false
-        }
+        if (!regex.matches(password)) { passwordErr = strPasswordWeak; ok = false }
+        if (confirmPassword != password) { confirmErr = strPasswordMismatch; ok = false }
         return ok
     }
 
@@ -157,18 +154,33 @@ fun SignUpScreen(
             .padding(horizontal = 24.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
+        // ── Language toggle (top-right, matches LoginScreen exactly) ──────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = { languageViewModel.toggleLanguage(context as Activity) }
+            ) {
+                Text(
+                    text = stringResource(R.string.lang_toggle),
+                    color = blue,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
         Spacer(Modifier.height(8.dp))
         Image(
             painter = painterResource(id = R.drawable.healthguard_icon1),
-            contentDescription = "HealthGuard Logo",
-            modifier = Modifier
-                .fillMaxWidth(0.5f)
-                .aspectRatio(1f)
+            contentDescription = stringResource(R.string.app_name),
+            modifier = Modifier.fillMaxWidth(0.5f).aspectRatio(1f)
         )
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = "Create Your Account",
+            text = stringResource(R.string.signup_title),
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
@@ -177,61 +189,48 @@ fun SignUpScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // First Name
         OutlinedTextField(
             value = firstName,
             onValueChange = { firstName = it; firstNameErr = null },
-            label = { Text("First Name") },
+            label = { Text(stringResource(R.string.signup_first_name)) },
             isError = firstNameErr != null,
             supportingText = { if (firstNameErr != null) Text(firstNameErr!!) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                disabledTextColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                cursorColor = Color.Black,
-                focusedBorderColor = blue,
-                unfocusedBorderColor = Color.Gray
+                focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray, focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White, disabledContainerColor = Color.White,
+                cursorColor = Color.Black, focusedBorderColor = blue, unfocusedBorderColor = Color.Gray
             )
         )
 
         Spacer(Modifier.height(12.dp))
 
-        // Last Name
         OutlinedTextField(
             value = lastName,
             onValueChange = { lastName = it; lastNameErr = null },
-            label = { Text("Last Name") },
+            label = { Text(stringResource(R.string.signup_last_name)) },
             isError = lastNameErr != null,
             supportingText = { if (lastNameErr != null) Text(lastNameErr!!) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                disabledTextColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                cursorColor = Color.Black,
-                focusedBorderColor = blue,
-                unfocusedBorderColor = Color.Gray
+                focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray, focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White, disabledContainerColor = Color.White,
+                cursorColor = Color.Black, focusedBorderColor = blue, unfocusedBorderColor = Color.Gray
             )
         )
 
         Spacer(Modifier.height(12.dp))
 
-        // Email
         OutlinedTextField(
             value = email,
             onValueChange = { email = it; emailErr = null },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.login_email)) },
             isError = emailErr != null,
             supportingText = { if (emailErr != null) Text(emailErr!!) },
             modifier = Modifier.fillMaxWidth(),
@@ -239,26 +238,20 @@ fun SignUpScreen(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                disabledTextColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                cursorColor = Color.Black,
-                focusedBorderColor = blue,
-                unfocusedBorderColor = Color.Gray
+                focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray, focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White, disabledContainerColor = Color.White,
+                cursorColor = Color.Black, focusedBorderColor = blue, unfocusedBorderColor = Color.Gray
             )
         )
 
         Spacer(Modifier.height(12.dp))
 
-        // Birthday
         OutlinedTextField(
             value = birthday,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Birthday") },
+            label = { Text(stringResource(R.string.signup_birthday)) },
             trailingIcon = {
                 IconButton(onClick = showDatePicker) {
                     Icon(Icons.Default.DateRange, null, tint = blue)
@@ -266,30 +259,22 @@ fun SignUpScreen(
             },
             isError = birthdayErr != null,
             supportingText = { if (birthdayErr != null) Text(birthdayErr!!) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showDatePicker() },
+            modifier = Modifier.fillMaxWidth().clickable { showDatePicker() },
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                disabledTextColor = Color.Black,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                cursorColor = Color.Black,
-                focusedBorderColor = blue,
-                unfocusedBorderColor = Color.Gray
+                focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Black, focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White, disabledContainerColor = Color.White,
+                cursorColor = Color.Black, focusedBorderColor = blue, unfocusedBorderColor = Color.Gray
             )
         )
 
         Spacer(Modifier.height(12.dp))
 
-        // Password
         OutlinedTextField(
             value = password,
             onValueChange = { password = it; passwordErr = null },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.login_password)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             isError = passwordErr != null,
@@ -298,25 +283,19 @@ fun SignUpScreen(
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                disabledTextColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                cursorColor = Color.Black,
-                focusedBorderColor = blue,
-                unfocusedBorderColor = Color.Gray
+                focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray, focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White, disabledContainerColor = Color.White,
+                cursorColor = Color.Black, focusedBorderColor = blue, unfocusedBorderColor = Color.Gray
             )
         )
 
         Spacer(Modifier.height(12.dp))
 
-        // Confirm Password
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it; confirmErr = null },
-            label = { Text("Confirm Password") },
+            label = { Text(stringResource(R.string.signup_confirm_password)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             isError = confirmErr != null,
@@ -325,15 +304,10 @@ fun SignUpScreen(
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                disabledTextColor = Color.Gray,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                disabledContainerColor = Color.White,
-                cursorColor = Color.Black,
-                focusedBorderColor = blue,
-                unfocusedBorderColor = Color.Gray
+                focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+                disabledTextColor = Color.Gray, focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White, disabledContainerColor = Color.White,
+                cursorColor = Color.Black, focusedBorderColor = blue, unfocusedBorderColor = Color.Gray
             )
         )
 
@@ -343,7 +317,6 @@ fun SignUpScreen(
             onClick = {
                 if (!validate()) return@Button
                 val cleanEmail = email.trim()
-
                 auth.createUserWithEmailAndPassword(cleanEmail, password)
                     .addOnSuccessListener {
                         val uid = auth.currentUser?.uid
@@ -358,39 +331,35 @@ fun SignUpScreen(
                                 .addOnSuccessListener {
                                     userViewModel.setUserProfile(profile)
                                     userViewModel.markSignedIn()
-                                    Toast.makeText(context, "Account created", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, strAccountCreated, Toast.LENGTH_SHORT).show()
                                 }
                                 .addOnFailureListener {
                                     userViewModel.setUserProfile(profile)
                                     userViewModel.markSignedIn()
                                 }
                         } else {
-                            Toast.makeText(context, "User ID is null after signup", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, strUidNull, Toast.LENGTH_LONG).show()
                         }
                     }
                     .addOnFailureListener { e ->
                         val msg = if (e is FirebaseAuthUserCollisionException)
-                            "An account already exists with this email."
-                        else e.localizedMessage ?: "Sign-up failed"
+                            strEmailCollision
+                        else e.localizedMessage ?: strEmailCollision
                         Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                     }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = blue)
         ) {
-            Text("Sign Up", color = Color.White)
+            Text(stringResource(R.string.signup_button), color = Color.White)
         }
 
         Spacer(Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = onGoogleSignIn,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
         ) {
@@ -400,15 +369,17 @@ fun SignUpScreen(
                 modifier = Modifier.size(22.dp)
             )
             Spacer(Modifier.width(12.dp))
-            Text("Sign up with Google", color = Color.Black)
+            Text(stringResource(R.string.signup_google), color = Color.Black)
         }
 
         Spacer(Modifier.height(12.dp))
 
         TextButton(onClick = { navController.navigate("login") }) {
             Text(buildAnnotatedString {
-                append("Already have an account? ")
-                withStyle(SpanStyle(color = blue)) { append("Login") }
+                append(stringResource(R.string.signup_has_account))
+                withStyle(SpanStyle(color = blue)) {
+                    append(stringResource(R.string.signup_login))
+                }
             })
         }
 

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HealthGuard</string>
     <string name="capture">Capture</string>
@@ -5,4 +6,294 @@
     <string name="image">Image</string>
     <string name="default_web_client_id">192038493071-sae3sbgluh3hj9qjm9ph4ned64ivtepb.apps.googleusercontent.com</string>
 
+    <!-- Language switcher -->
+    <string name="lang_toggle">🇬🇷 GR</string>
+
+    <!-- Login screen -->
+    <string name="login_title">Login to Your Account</string>
+    <string name="login_email">Email</string>
+    <string name="login_password">Password</string>
+    <string name="login_forgot_password">Forgot Password?</string>
+    <string name="login_button">Login</string>
+    <string name="login_or_continue">or continue with</string>
+    <string name="login_google">Continue with Google</string>
+    <string name="login_no_account">Don\'t have an account? </string>
+    <string name="login_sign_up">Sign Up</string>
+    <string name="login_email_required">Email required</string>
+    <string name="login_email_invalid">Enter a valid email</string>
+    <string name="login_password_required">Password required</string>
+    <string name="login_failed">Login failed: </string>
+    <string name="login_welcome">Welcome %s!</string>
+
+    <!-- Forgot password dialog -->
+    <string name="forgot_title">Reset Password</string>
+    <string name="forgot_description">Enter your email address and we\'ll send you a link to reset your password.</string>
+    <string name="forgot_send">Send Reset Link</string>
+    <string name="forgot_cancel">Cancel</string>
+    <string name="forgot_success">Password reset email sent! Check your inbox.</string>
+    <string name="forgot_no_account">No account found with this email</string>
+    <string name="forgot_failed">Failed to send reset email</string>
+
+    <!-- Sign up screen -->
+    <string name="signup_title">Create Your Account</string>
+    <string name="signup_first_name">First Name</string>
+    <string name="signup_last_name">Last Name</string>
+    <string name="signup_birthday">Birthday</string>
+    <string name="signup_confirm_password">Confirm Password</string>
+    <string name="signup_button">Sign Up</string>
+    <string name="signup_google">Sign up with Google</string>
+    <string name="signup_has_account">Already have an account? </string>
+    <string name="signup_login">Login</string>
+    <string name="signup_first_name_required">First name required</string>
+    <string name="signup_last_name_required">Last name required</string>
+    <string name="signup_email_invalid">Enter a valid email</string>
+    <string name="signup_birthday_required">Please select your birthday</string>
+    <string name="signup_password_rules">8+ chars, 1 capital, 1 number, 1 symbol</string>
+    <string name="signup_passwords_no_match">Passwords do not match</string>
+    <string name="signup_success">Account created</string>
+    <string name="signup_uid_null">User ID is null after signup</string>
+    <string name="signup_email_collision">An account already exists with this email.</string>
+
+    <!-- Home screen -->
+    <string name="home_settings">Settings</string>
+    <string name="home_appearance">Appearance</string>
+    <string name="home_light_theme">Light theme</string>
+    <string name="home_dark_theme">Dark theme</string>
+    <string name="home_language">Language</string>
+    <string name="home_sign_out">Sign out</string>
+    <string name="home_welcome">Welcome, %s</string>
+    <string name="home_scan_medicine">Scan Medicine</string>
+    <string name="home_todays_pills">Today\'s Pills</string>
+    <string name="home_appointments">Appointments</string>
+    <string name="home_health_stats">Health Stats</string>
+    <string name="home_emergency">Emergency</string>
+    <string name="home_gallery">Gallery</string>
+    <string name="home_connected">Connected to server ✅</string>
+
+    <!-- Appointment screens -->
+    <string name="appointment_list_title">My Appointments</string>
+    <string name="appointment_add_fab">Add</string>
+    <string name="appointment_empty">No appointments yet.\nTap + to add your first.</string>
+    <string name="appointment_section_today">Today</string>
+    <string name="appointment_section_upcoming">Upcoming</string>
+    <string name="appointment_new">New Appointment</string>
+    <string name="appointment_edit">Edit Appointment</string>
+    <string name="appointment_title">Title</string>
+    <string name="appointment_location">Location</string>
+    <string name="appointment_date">Date: %s</string>
+    <string name="appointment_time">Time: %s</string>
+    <string name="appointment_reminders">Reminders</string>
+    <string name="appointment_reminder_24h">24 hours before</string>
+    <string name="appointment_reminder_2h">2 hours before</string>
+    <string name="appointment_reminder_1h">1 hour before</string>
+    <string name="appointment_save">Save Appointment</string>
+    <string name="appointment_update">Update Appointment</string>
+    <string name="appointment_saved">Saved!</string>
+    <string name="appointment_badge_24h">24h</string>
+    <string name="appointment_badge_2h">2h</string>
+    <string name="appointment_badge_1h">1h</string>
+    <string name="appointment_edit_action">Edit</string>
+    <string name="appointment_delete_action">Delete</string>
+    <string name="appointment_notification_title">Upcoming appointment</string>
+    <string name="appointment_notification_message">%1$s is scheduled %2$s at %3$s</string>
+    <string name="appointment_offset_24h">in 24 hours</string>
+    <string name="appointment_offset_2h">in 2 hours</string>
+    <string name="appointment_offset_1h">in 1 hour</string>
+    <string name="appointment_offset_soon">soon</string>
+
+    <string name="appointment_exact_alarm_title">Reminder permission required</string>
+    <string name="appointment_exact_alarm_message">To receive appointment reminders at the correct time, please allow exact alarms in system settings.</string>
+    <string name="appointment_exact_alarm_settings">Open settings</string>
+
+    <string name="common_cancel">Cancel</string>
+    <!-- Stats screen -->
+    <string name="stats_title">Activity Tracking</string>
+    <string name="stats_goal_label">Daily Step Goal</string>
+    <string name="stats_goal_hint">Goal (steps)</string>
+    <string name="stats_refresh">Refresh</string>
+    <string name="stats_save_goal">Save Goal</string>
+    <string name="stats_goal_error">Please enter a valid number (1–100000).</string>
+    <string name="stats_weekly_avg">Weekly Avg</string>
+    <string name="stats_monthly_total">Monthly Total</string>
+    <string name="stats_streak">Current Streak</string>
+    <string name="stats_goal_reached">Goal Reached</string>
+    <string name="stats_goal_completion">Goal Completion</string>
+    <string name="stats_avg_active">Avg (active days)</string>
+    <string name="stats_best_day">Best Day</string>
+    <string name="stats_days_suffix"> days</string>
+    <string name="stats_of_steps">of %d steps</string>
+
+    <!-- Pill screens -->
+    <string name="pill_reminder_saved">Pill reminder saved</string>
+    <string name="pill_edit_title">Edit Pill Reminder</string>
+    <string name="pill_add_title">Add Pill Reminder</string>
+    <string name="pill_medicine_info">Medicine Info</string>
+    <string name="pill_medicine_name">Medicine name</string>
+    <string name="pill_dosage">Dosage</string>
+    <string name="pill_schedule">Schedule</string>
+    <string name="pill_days_of_week">Days of week</string>
+    <string name="pill_reminder_times">Reminder times</string>
+    <string name="pill_add_time">Add time</string>
+    <string name="pill_options">Options</string>
+    <string name="pill_reminder_enabled">Reminder enabled</string>
+    <string name="pill_exact_alarm_warning">Please allow exact alarms, then come back and tap Save again.</string>
+    <string name="pill_saving">Saving…</string>
+    <string name="pill_update_reminder">Update Reminder</string>
+    <string name="pill_save_reminder">Save Reminder</string>
+    <string name="pill_list_title">Pill Reminders</string>
+    <string name="pill_list_empty">No reminders yet.\nTap + to add your first pill.</string>
+    <string name="pill_all_reminders">All Reminders</string>
+    <string name="pill_summary_title">Today\'s Overview</string>
+    <string name="pill_summary_doses">%1$d/%2$d doses completed</string>
+    <string name="pill_summary_active">Active reminders: %d</string>
+    <string name="pill_summary_today_count">Medicines for today: %d</string>
+    <string name="pill_next_time">Next: %s</string>
+    <string name="pill_no_days">No days selected</string>
+    <string name="pill_edit_action">Edit</string>
+    <string name="pill_delete_action">Delete</string>
+    <string name="pill_marked_taken">Marked as taken</string>
+    <string name="pill_snoozed_10min">Snoozed for 10 minutes</string>
+    <string name="pill_channel_name">Pill Reminders</string>
+    <string name="pill_channel_description">Notifications for pill reminders</string>
+
+    <string name="permissions_required_title">Required Settings</string>
+    <string name="permissions_required_message">To show the alarm screen:\n\n• Show on lock screen\n• Open new windows in background\n• Display pop-up windows</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="cancel">Cancel</string>
+    <!-- Pill ViewModel validation errors (used via context.getString) -->
+    <string name="pill_error_name_required">Medicine name is required</string>
+    <string name="pill_error_dosage_required">Dosage is required</string>
+    <string name="pill_error_time_required">Add at least one time</string>
+    <string name="pill_error_days_required">Select at least one day</string>
+    <string name="pill_error_sign_in">Please sign in first</string>
+    <string name="pill_error_load_failed">Failed to load reminder</string>
+    <string name="pill_error_save_failed">Failed to save reminder</string>
+
+    <!-- Day selector -->
+    <string name="day_mon">Mon</string>
+    <string name="day_tue">Tue</string>
+    <string name="day_wed">Wed</string>
+    <string name="day_thu">Thu</string>
+    <string name="day_fri">Fri</string>
+    <string name="day_sat">Sat</string>
+    <string name="day_sun">Sun</string>
+
+    <!-- Alarm screen -->
+    <string name="alarm_snooze">Snooze</string>
+    <string name="alarm_taken">Taken</string>
+    <string name="pill_notification_title">Pill Reminder</string>
+    <string name="pill_notification_body">Time to take %1$s of %2$s</string>
+
+    <!-- Emergency screens -->
+    <string name="emergency_title">Emergency SOS</string>
+    <string name="emergency_mode_active">Emergency Mode Active</string>
+    <string name="emergency_no_contacts_title">No Emergency Contacts</string>
+    <string name="emergency_no_contacts_desc">You must add at least one contact to use SOS features.</string>
+    <string name="emergency_add_first_contact">Add First Contact</string>
+    <string name="emergency_call_cta">CALL PRIORITY CONTACT NOW</string>
+    <string name="emergency_contacts_hint">Contacts (Hold to move to top)</string>
+    <string name="emergency_footer">SOS pre-fills an SMS with your location. Tap \'Call\' to dial manually.</string>
+    <string name="emergency_add_contact_cd">Add contact</string>
+    <string name="emergency_delete_cd">Delete</string>
+    <string name="emergency_edit_cd">Edit</string>
+    <string name="emergency_back_cd">Back</string>
+
+    <!-- Emergency setup screen -->
+    <string name="emergency_setup_add_title">Add Contact</string>
+    <string name="emergency_setup_edit_title">Edit Contact</string>
+    <string name="emergency_setup_first_name">First Name</string>
+    <string name="emergency_setup_last_name">Last Name</string>
+    <string name="emergency_setup_phone">Phone Number</string>
+    <string name="emergency_setup_save">Save &amp; Complete Setup</string>
+    <string name="location_unavailable">Location Unavailable (GPS signal lost)</string>
+    <string name="emergency_message_prefix">EMERGENCY! I need help. My location:</string>
+
+    <!-- Stats screen — range chips -->
+    <string name="stats_range_today">Today</string>
+    <string name="stats_range_7days">7 days</string>
+    <string name="stats_range_30days">30 days</string>
+    <string name="stats_range_3months">3 months</string>
+    <string name="stats_range_6months">6 months</string>
+    <string name="stats_range_last_n">Last %d days</string>
+
+    <!-- Stats screen — filters & sort -->
+    <string name="stats_filter_show">SHOW</string>
+    <string name="stats_filter_all">All</string>
+    <string name="stats_filter_reached">✓ Goal</string>
+    <string name="stats_filter_missed">✗ Missed</string>
+    <string name="stats_active_only">Active only</string>
+    <string name="stats_sort_newest">Newest</string>
+    <string name="stats_sort_oldest">Oldest</string>
+    <string name="stats_sort_most">Most steps</string>
+    <string name="stats_sort_least">Least steps</string>
+    <string name="stats_sort_label">Sort: %s ↕</string>
+
+    <!-- Stats screen — chart -->
+    <string name="stats_chart_bar">Bar</string>
+    <string name="stats_chart_line">Line</string>
+    <string name="stats_chart_heat">Heat</string>
+    <string name="stats_steps_per_day">Steps per day</string>
+
+    <!-- Stats screen — summary cards -->
+    <string name="stats_card_total">Total</string>
+    <string name="stats_card_daily_avg">Daily avg</string>
+    <string name="stats_card_goal_days">Goal days</string>
+
+    <!-- Stats screen — list & day items -->
+    <string name="stats_loading">Loading…</string>
+    <string name="stats_no_data">No data</string>
+    <string name="stats_no_data_label">no data</string>
+    <string name="stats_day_count">%d days</string>
+    <string name="stats_pct_of_goal">%d%% of goal</string>
+    <string name="stats_badge_rest">rest</string>
+    <string name="stats_badge_goal">✓ goal</string>
+    <string name="stats_badge_missed">✗ missed</string>
+    <string name="stats_streak_badge">🔥 %d day streak</string>
+
+    <string name="stats_goal_steps_unit">steps / day</string>
+    <string name="stats_goal_benchmark">WHO recommends 10,000 steps/day</string>
+    <string name="stats_goal_saved">Saved</string>
+
+    <string name="stats_best_day_format">%s: %d steps</string>
+
+
+    <!-- Camera screen -->
+    <string name="camera_permission_required">Camera permission required</string>
+    <string name="camera_back">Back</string>
+    <string name="camera_open_gallery">Open Gallery</string>
+    <string name="camera_flip">Flip Camera</string>
+
+    <!-- Gallery -->
+    <string name="gallery_title">Gallery</string>
+    <string name="gallery_no_images">No images found.</string>
+    <string name="gallery_info">Info</string>
+    <string name="gallery_delete">Delete</string>
+    <string name="gallery_cancel">Cancel</string>
+    <string name="gallery_delete_confirm">Delete image?</string>
+
+    <!-- Chat -->
+    <string name="chat_title">Pharmaceutical Assistant</string>
+    <string name="chat_placeholder">Ask something else…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_delete_title">Delete conversation?</string>
+    <string name="chat_delete_body">Are you sure you want to clear the history?</string>
+    <string name="chat_delete_confirm">Delete</string>
+    <string name="chat_cancel">Cancel</string>
+    <string name="chat_sources">Sources:</string>
+    <string name="chat_typing">HealthGuard is searching for information…</string>
+    <string name="chat_error_image">An error occurred while processing the image.</string>
+    <string name="chat_error_connection">Unable to connect to HealthGuard server.</string>
+    <string name="chat_error_system">System error.</string>
+    <string name="chat_lang_toggle">🇬🇷 GR</string>
+    <string name="chat_lang_toggle_en">🇬🇧 EN</string>
+    <string name="chat_lang_toggle_gr">🇬🇷 GR</string>
+    <!-- Chat quick actions -->
+    <string name="qa_side_effects_title">Side Effects</string>
+    <string name="qa_side_effects_msg">What are the side effects of this medicine? Give a full list and when to seek help.</string>
+    <string name="qa_dosage_title">Dosage</string>
+    <string name="qa_dosage_msg">What is the dosage? Give typical instructions and important warnings.</string>
+    <string name="qa_contraindications_title">Contraindications</string>
+    <string name="qa_contraindications_msg">What are the contraindications and who should avoid it?</string>
+    <string name="qa_missed_dose_title">Missed my pills</string>
+    <string name="qa_missed_dose_msg">I missed a dose. What should I do? Give practical instructions and what to avoid.</string>
 </resources>

@@ -13,11 +13,11 @@ import java.io.File
 
 class ChatRepository {
 
-    suspend fun processMedicineImage(imageFile: File): ChatSessionResult =
+    suspend fun processMedicineImage(imageFile: File, language: String = "el"): ChatSessionResult =
         withContext(Dispatchers.IO) {
             try {
                 val body = imageFile.asRequestBody("application/octet-stream".toMediaType())
-                val response = ApiClient.chat.chatFromImage(body)
+                val response = ApiClient.chat.chatFromImage(body, language)
 
                 if (!response.isSuccessful) {
                     return@withContext ChatSessionResult.Error("Σφάλμα διακομιστή: ${response.code()}")
@@ -50,7 +50,8 @@ class ChatRepository {
         message: String,
         medicineContext: String? = null,
         activeSubstance: String? = null,
-        strength: String? = null
+        strength: String? = null,
+        language: String = "el"
     ): Result<ChatResponse> = withContext(Dispatchers.IO) {
         try {
             val response = ApiClient.chat.chat(
@@ -60,7 +61,8 @@ class ChatRepository {
                     context = mapOf(
                         "brand" to (medicineContext ?: ""),
                         "activeSubstance" to (activeSubstance ?: ""),
-                        "strength" to (strength ?: "")
+                        "strength" to (strength ?: ""),
+                        "language" to language
                     )
                 )
             )

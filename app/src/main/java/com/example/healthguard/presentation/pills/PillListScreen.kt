@@ -22,10 +22,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.example.healthguard.R
 import com.example.healthguard.data.network.pills.buildTimeKey
 import com.example.healthguard.viewmodel.PillListViewModel
 import java.util.Calendar
@@ -70,14 +72,14 @@ fun PillListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pill Reminders") }
+                title = { Text(stringResource(R.string.pill_list_title)) }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add reminder"
+                    contentDescription = stringResource(R.string.pill_add_title)
                 )
             }
         }
@@ -89,7 +91,7 @@ fun PillListScreen(
         ) {
             if (uiState.reminders.isEmpty() && !uiState.isLoading) {
                 Text(
-                    text = "No reminders yet.\nTap + to add your first pill.",
+                    text = stringResource(R.string.pill_list_empty),
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
@@ -109,7 +111,7 @@ fun PillListScreen(
 
                     item {
                         Text(
-                            text = "All Reminders",
+                            text = stringResource(R.string.pill_all_reminders),
                             style = MaterialTheme.typography.titleMedium
                         )
                     }

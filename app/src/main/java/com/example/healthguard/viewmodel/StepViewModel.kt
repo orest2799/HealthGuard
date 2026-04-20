@@ -45,19 +45,18 @@ class StepViewModel(
                 currentStreak = 0,
                 goalReachedDays = 0,
                 goalCompletionPercentage = 0.0,
-                bestDay = null,
+                bestDayDate = null,
+                bestDaySteps = null,
                 averageActiveOnly = 0.0,
                 daysWithData = 0
             )
 
-            // Step 2 — fetch backend in parallel
             val (goal, summary) = withContext(Dispatchers.IO) {
                 val goalDeferred = async { repository.fetchGoal(defaultGoal = repository.getDailyTargetOrDefault()) }
                 val historyDeferred = async { repository.fetchHistory(start, today) }
                 goalDeferred.await() to historyDeferred.await()
             }
 
-            // Update goal immediately so the ring reflects it
             val cur = _stepState.value
             if (cur is StepUiState.Success) {
                 _stepState.value = cur.copy(dailyTarget = goal)
@@ -69,15 +68,12 @@ class StepViewModel(
             val backendToday = historyMap[today] ?: 0
             val mergedToday = maxOf(localToday, backendToday)
 
-            // Fix: merge localHistory first so weeklyAvg includes local steps
-            // for any days the backend may not have returned yet
             val mergedHistory = localHistory.toMutableMap()
             for ((date, steps) in historyMap) {
                 mergedHistory[date] = maxOf(mergedHistory[date] ?: 0, steps)
             }
             mergedHistory[today] = mergedToday
 
-            // Weekly average over the last 7 days
             val last7Dates = (0..6).map { LocalDate.now().minusDays(it.toLong()).toString() }
             val last7Steps = last7Dates.map { d -> mergedHistory[d] ?: 0 }
             val weeklyAvg = last7Steps.average()
@@ -93,7 +89,9 @@ class StepViewModel(
                 currentStreak = summary.currentStreak,
                 goalReachedDays = summary.goalReachedDays,
                 goalCompletionPercentage = summary.goalCompletionPercentage,
-                bestDay = summary.bestDay?.let { "${it.date}: ${it.steps} steps" },
+                // Store raw values — formatted in the UI layer with stringResource()
+                bestDayDate = summary.bestDay?.date,
+                bestDaySteps = summary.bestDay?.steps,
                 averageActiveOnly = summary.averageActiveOnly,
                 daysWithData = summary.daysWithData
             )
@@ -122,7 +120,6 @@ class StepViewModel(
     fun updateGoal(newGoal: Int) {
         val safe = newGoal.coerceIn(1, 100_000)
 
-        // Update state in-place — no loading flash
         val cur = _stepState.value
         if (cur is StepUiState.Success) {
             _stepState.value = cur.copy(dailyTarget = safe)
@@ -130,7 +127,6 @@ class StepViewModel(
 
         viewModelScope.launch {
             repository.updateGoal(safe)
-            // No loadDashboardData() here — state is already updated above
         }
     }
 }
@@ -144,11 +140,12 @@ sealed class StepUiState {
         val weeklyAvg: Double,
         val monthlyTotal: Int,
         val fullHistory: Map<String, Int>,
-        // Fields from backend summary
         val currentStreak: Int,
         val goalReachedDays: Int,
         val goalCompletionPercentage: Double,
-        val bestDay: String?,           // formatted as "YYYY-MM-DD: N steps"
+        // Raw values — formatted in StatsScreen using stringResource()
+        val bestDayDate: String?,
+        val bestDaySteps: Int?,
         val averageActiveOnly: Double,
         val daysWithData: Int
     ) : StepUiState()

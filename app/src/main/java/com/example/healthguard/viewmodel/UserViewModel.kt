@@ -53,7 +53,6 @@ class UserViewModel : ViewModel() {
         auth.currentUser?.uid?.let { loadUserData(it) }
     }
 
-    /** Manually set in-memory profile (e.g., right after creating/updating it). */
     fun setUserProfile(profile: UserProfile) {
         _userProfile.value = profile
     }
@@ -88,7 +87,7 @@ class UserViewModel : ViewModel() {
         }
     }
 
-    /** Create or update the profile in DB and cache it locally. */
+
     fun upsertUserProfile(
         uid: String? = auth.currentUser?.uid,
         profile: UserProfile

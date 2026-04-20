@@ -18,7 +18,7 @@ class StepSensorManager(
 
     fun startListening() {
         stepCounter?.also {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
     fun hasStepCounter(): Boolean = stepCounter != null

@@ -3,6 +3,7 @@ package com.example.healthguard.viewmodel.utils
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.RectF
+import android.util.Log
 import androidx.core.graphics.scale
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
@@ -19,12 +20,12 @@ data class Detection(
 
 class YoloV8Detector(context: Context) {
 
-    // Interpreter with XNNPACK & threads
+
     private val interpreter: Interpreter by lazy {
         val opts = Interpreter.Options().apply {
-            // XNNPACK is fast on most devices; fall back gracefully if not available
+
             setUseXNNPACK(true)
-            // Tweak threads for your target devices (2–4 is a good start)
+
             setNumThreads(Runtime.getRuntime().availableProcessors().coerceAtMost(4))
         }
         Interpreter(loadModelFile(context, "best3.tflite"), opts)
@@ -34,7 +35,6 @@ class YoloV8Detector(context: Context) {
         context.assets.open("labels.txt").bufferedReader().use { it.readLines() }
     }
 
-    /** Load .tflite from assets as a MappedByteBuffer and close all streams properly. */
     private fun loadModelFile(context: Context, filename: String): MappedByteBuffer {
         val afd = context.assets.openFd(filename)
         FileInputStream(afd.fileDescriptor).use { fis ->
@@ -44,7 +44,7 @@ class YoloV8Detector(context: Context) {
                 afd.startOffset,
                 afd.declaredLength
             )
-            afd.close() // close AssetFileDescriptor too
+            afd.close()
             return mapped
         }
     }
@@ -95,10 +95,11 @@ class YoloV8Detector(context: Context) {
             val conf = rawOutput[4][i]
 
             if (conf >= confidenceThreshold) {
-                val left = (x - w / 2f) * widthRatio
-                val top = (y - h / 2f) * heightRatio
-                val right = (x + w / 2f) * widthRatio
-                val bottom = (y + h / 2f) * heightRatio
+                Log.d("YOLO", "Detection: x=$x y=$y w=$w h=$h conf=$conf")
+                val left = (x - w / 2f)
+                val top = (y - h / 2f)
+                val right = (x + w / 2f)
+                val bottom = (y + h / 2f)
 
                 val rect = RectF(left, top, right, bottom)
                 val label = labels.getOrElse(0) { "medicine_box" } // single class
@@ -109,16 +110,16 @@ class YoloV8Detector(context: Context) {
         return applyNMS(detections, iouThreshold)
     }
 
-    /** Call this from the Composable’s onDispose to release native resources. */
+
     fun close() {
         try {
             interpreter.close()
         } catch (_: Exception) {
-            // ignore
+
         }
     }
 
-    // --- helpers ---
+
     private fun applyNMS(detections: List<Detection>, iouThreshold: Float): List<Detection> {
         val kept = mutableListOf<Detection>()
         val sorted = detections.sortedByDescending { it.confidence }

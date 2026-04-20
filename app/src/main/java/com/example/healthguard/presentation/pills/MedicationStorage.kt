@@ -2,7 +2,7 @@ package com.example.healthguard.presentation.pills
 
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
-import com.example.healthguard.domain.model.Medication
+import com.example.healthguard.data.models.Medication
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError

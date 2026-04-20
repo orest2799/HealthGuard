@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.map
 object ThemePreferences {
     private val THEME_KEY = booleanPreferencesKey("dark_theme_enabled")
 
-    // Pass the dataStore in as a dependency instead of using Context.dataStore
+
     suspend fun saveTheme(dataStore: DataStore<Preferences>, isDark: Boolean) {
         dataStore.edit { prefs ->
             prefs[THEME_KEY] = isDark

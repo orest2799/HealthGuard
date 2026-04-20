@@ -18,7 +18,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.healthguard.R
 import com.example.healthguard.data.network.pills.PillReminder
 import com.example.healthguard.data.network.pills.buildTimeKey
 import java.util.Calendar
@@ -31,6 +34,7 @@ fun PillReminderCard(
     onMarkTakenClick: ((String) -> Unit)? = null,
     takenTimeKeysToday: Set<String> = emptySet()
 ) {
+    val context = LocalContext.current
     val nextTimeKey = getNextTimeKey(reminder)
 
     Card(
@@ -57,13 +61,13 @@ fun PillReminderCard(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = formatDays(reminder),
+                        text = formatDays(reminder, context),
                         style = MaterialTheme.typography.bodySmall
                     )
 
                     getNextTime(reminder)?.let {
                         Text(
-                            text = "Next: $it",
+                            text = stringResource(R.string.pill_next_time, it),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -74,13 +78,13 @@ fun PillReminderCard(
                     IconButton(onClick = onEditClick) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
-                            contentDescription = "Edit"
+                            contentDescription = stringResource(R.string.pill_edit_action)
                         )
                     }
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Delete"
+                            contentDescription = stringResource(R.string.pill_delete_action)
                         )
                     }
                 }
@@ -107,10 +111,10 @@ fun PillReminderCard(
                         },
                         label = {
                             Text(
-                                text = when {
-                                    isTaken -> "%02d:%02d ✓".format(time.hour, time.minute)
-                                    else -> "%02d:%02d".format(time.hour, time.minute)
-                                }
+                                text = if (isTaken)
+                                    "%02d:%02d ✓".format(time.hour, time.minute)
+                                else
+                                    "%02d:%02d".format(time.hour, time.minute)
                             )
                         }
                     )
@@ -167,24 +171,26 @@ private fun getNextTime(reminder: PillReminder): String? {
         )
     }
 }
-private fun formatDays(reminder: PillReminder): String {
+
+// Receives Context so getString() can be called outside of Composable scope
+private fun formatDays(reminder: PillReminder, context: android.content.Context): String {
     val days = reminder.reminderTimes
         .firstOrNull()
         ?.daysOfWeek
         ?.sorted()
         ?: emptyList()
 
-    if (days.isEmpty()) return "No days selected"
+    if (days.isEmpty()) return context.getString(R.string.pill_no_days)
 
     val labels = days.map {
         when (it) {
-            Calendar.MONDAY -> "Mon"
-            Calendar.TUESDAY -> "Tue"
-            Calendar.WEDNESDAY -> "Wed"
-            Calendar.THURSDAY -> "Thu"
-            Calendar.FRIDAY -> "Fri"
-            Calendar.SATURDAY -> "Sat"
-            Calendar.SUNDAY -> "Sun"
+            Calendar.MONDAY    -> context.getString(R.string.day_mon)
+            Calendar.TUESDAY   -> context.getString(R.string.day_tue)
+            Calendar.WEDNESDAY -> context.getString(R.string.day_wed)
+            Calendar.THURSDAY  -> context.getString(R.string.day_thu)
+            Calendar.FRIDAY    -> context.getString(R.string.day_fri)
+            Calendar.SATURDAY  -> context.getString(R.string.day_sat)
+            Calendar.SUNDAY    -> context.getString(R.string.day_sun)
             else -> "?"
         }
     }

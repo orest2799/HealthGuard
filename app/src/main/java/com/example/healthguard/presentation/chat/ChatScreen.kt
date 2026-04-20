@@ -3,6 +3,7 @@ package com.example.healthguard.presentation.chat
 import android.content.Intent
 import android.net.Uri
 import android.widget.TextView
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,12 +42,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.healthguard.R
 import com.example.healthguard.data.network.dto.ChatSource
 import com.example.healthguard.viewmodel.ChatViewModel
+import com.example.healthguard.viewmodel.LanguageViewModel
 import io.noties.markwon.Markwon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,14 +60,20 @@ import io.noties.markwon.Markwon
 fun ChatScreen(
     vm: ChatViewModel,
     startWithSessionId: String? = null,
-    startTitle: String? = null
+    startTitle: String? = null,
+    languageViewModel: LanguageViewModel
 ) {
-    var input by remember { mutableStateOf("") }
+    val chatLanguage by vm.chatLanguage.collectAsState()
+    val chatInGreek = chatLanguage == "el"
+
+    var inputText by remember { mutableStateOf("") }
     val messages by vm.messages.collectAsState()
-    val quickActions by vm.quickActions.collectAsState()   // ✅ NEW
+    val quickActions by vm.quickActions.collectAsState()
     val listState = rememberLazyListState()
     val isSending by vm.isSending.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val chatTitle = startTitle ?: stringResource(R.string.chat_title)
 
     LaunchedEffect(startWithSessionId) {
         if (startWithSessionId != null) {
@@ -78,13 +90,29 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(startTitle ?: "Φαρμακευτικός Βοηθός") },
+                title = { Text(chatTitle) },
                 actions = {
+                    TextButton(
+                        onClick = {
+                            val newLang = if (chatInGreek) "en" else "el"
+                            vm.setChatLanguage(newLang)
+                        }
+                    ) {
+                        Text(
+                            // Use hardcoded strings — stringResource() reflects the APP locale,
+                            // not the chat language, so it won't update when only the chat
+                            // language is toggled (the app locale stays the same).
+                            text = if (chatInGreek) "EN" else "GR",
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     if (messages.isNotEmpty()) {
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Clear Chat",
+                                contentDescription = stringResource(R.string.chat_delete_title),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -107,10 +135,8 @@ fun ChatScreen(
                 items(messages, key = { it.id }) { msg ->
                     if (msg.fromUser) UserBubble(text = msg.text)
                     else BotBubble(text = msg.text, sources = msg.sources)
-
                     Spacer(Modifier.height(8.dp))
                 }
-
                 if (isSending) {
                     item { AssistiveTyping() }
                 }
@@ -124,7 +150,6 @@ fun ChatScreen(
                     .navigationBarsPadding()
                     .padding(8.dp)
             ) {
-                // ✅ Backend-driven Quick Actions
                 if (quickActions.isNotEmpty()) {
                     LazyRow(
                         modifier = Modifier
@@ -147,25 +172,25 @@ fun ChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
-                        value = input,
-                        onValueChange = { input = it },
+                        value = inputText,
+                        onValueChange = { inputText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Ρωτήστε κάτι άλλο...") },
+                        placeholder = { Text(stringResource(R.string.chat_placeholder)) },
                         enabled = !isSending
                     )
                     Button(
                         onClick = {
-                            if (input.isNotBlank()) {
-                                vm.send(input)
-                                input = ""
+                            if (inputText.isNotBlank()) {
+                                vm.send(inputText)
+                                inputText = ""
                             }
                         },
-                        enabled = !isSending && input.isNotBlank(),
+                        enabled = !isSending && inputText.isNotBlank(),
                         modifier = Modifier
                             .padding(start = 8.dp)
                             .height(56.dp)
                     ) {
-                        Text("Αποστολή")
+                        Text(stringResource(R.string.chat_send))
                     }
                 }
             }
@@ -175,15 +200,20 @@ fun ChatScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Διαγραφή συνομιλίας;") },
-            text = { Text("Είστε σίγουροι ότι θέλετε να καθαρίσετε το ιστορικό;") },
+            title = { Text(stringResource(R.string.chat_delete_title)) },
+            text = { Text(stringResource(R.string.chat_delete_body)) },
             confirmButton = {
                 TextButton(onClick = { vm.clearChat(); showDeleteDialog = false }) {
-                    Text("Διαγραφή", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.chat_delete_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Ακύρωση") }
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.chat_cancel))
+                }
             }
         )
     }
@@ -191,7 +221,10 @@ fun ChatScreen(
 
 @Composable
 fun UserBubble(text: String) {
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.End) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.End
+    ) {
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer,
             shape = MaterialTheme.shapes.medium,
@@ -206,16 +239,10 @@ fun UserBubble(text: String) {
 fun BotBubble(text: String, sources: List<ChatSource>) {
     val ctx = LocalContext.current
     val markwon = remember { Markwon.create(ctx) }
-    val bubbleColor = if (androidx.compose.foundation.isSystemInDarkTheme()) {
-        androidx.compose.ui.graphics.Color(0xFF2C2C2E)  // slightly lighter than black
-    } else {
-        androidx.compose.ui.graphics.Color(0xFFE0E0E0)  // medium grey, clearly visible
-    }
-    val textColorInt = if (androidx.compose.foundation.isSystemInDarkTheme()) {
-        android.graphics.Color.WHITE
-    } else {
-        android.graphics.Color.BLACK
-    }
+    val bubbleColor = if (isSystemInDarkTheme()) Color(0xFF2C2C2E) else Color(0xFFE0E0E0)
+    val textColorInt = if (isSystemInDarkTheme()) android.graphics.Color.WHITE
+    else android.graphics.Color.BLACK
+
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
         Surface(
             color = bubbleColor,
@@ -238,7 +265,7 @@ fun BotBubble(text: String, sources: List<ChatSource>) {
                 )
                 if (sources.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text("Πηγές:", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.chat_sources), style = MaterialTheme.typography.labelSmall)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(sources) { s ->
                             AssistChip(
@@ -246,21 +273,11 @@ fun BotBubble(text: String, sources: List<ChatSource>) {
                                     val fixedUrl = if (s.url.contains("galinos.gr")) {
                                         val uri = Uri.parse(s.url)
                                         val query = uri.getQueryParameter("q") ?: ""
-
-                                        // 1. Clean the query: replace '+' with spaces and trim extra whitespace
                                         val cleanQuery = query.replace("+", " ").trim()
-
-                                        // 2. Encode the full string (Name + Strength)
                                         val encodedQuery = java.net.URLEncoder.encode(cleanQuery, "UTF-8")
-
-                                        // 3. Use the search endpoint
                                         "https://www.galinos.gr/web/drugs/main/search?q=$encodedQuery"
-                                    } else {
-                                        s.url
-                                    }
-
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl))
-                                    ctx.startActivity(intent)
+                                    } else s.url
+                                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl)))
                                 },
                                 label = {
                                     Text(s.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -277,7 +294,7 @@ fun BotBubble(text: String, sources: List<ChatSource>) {
 @Composable
 fun AssistiveTyping() {
     Text(
-        "Ο HealthGuard αναζητά πληροφορίες...",
+        stringResource(R.string.chat_typing),
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(12.dp),
         color = MaterialTheme.colorScheme.outline

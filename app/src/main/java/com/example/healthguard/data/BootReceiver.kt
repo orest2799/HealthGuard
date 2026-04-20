@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.example.healthguard.data.network.appointments.AppointmentRestoreManager
-import com.example.healthguard.domain.model.pills.notifications.PillReminderRestoreManager
+import com.example.healthguard.data.network.pills.PillReminderRestoreManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

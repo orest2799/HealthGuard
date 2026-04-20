@@ -6,7 +6,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.healthguard.R
 import java.util.Calendar
 
 @Composable
@@ -15,14 +17,15 @@ fun DaySelectorRow(
     onDayClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Built inside the Composable so stringResource() can be called
     val days = listOf(
-        Calendar.MONDAY to "Mon",
-        Calendar.TUESDAY to "Tue",
-        Calendar.WEDNESDAY to "Wed",
-        Calendar.THURSDAY to "Thu",
-        Calendar.FRIDAY to "Fri",
-        Calendar.SATURDAY to "Sat",
-        Calendar.SUNDAY to "Sun"
+        Calendar.MONDAY    to stringResource(R.string.day_mon),
+        Calendar.TUESDAY   to stringResource(R.string.day_tue),
+        Calendar.WEDNESDAY to stringResource(R.string.day_wed),
+        Calendar.THURSDAY  to stringResource(R.string.day_thu),
+        Calendar.FRIDAY    to stringResource(R.string.day_fri),
+        Calendar.SATURDAY  to stringResource(R.string.day_sat),
+        Calendar.SUNDAY    to stringResource(R.string.day_sun)
     )
 
     FlowRow(

@@ -37,6 +37,8 @@ import com.example.healthguard.viewmodel.AddEditPillViewModel
 import com.example.healthguard.viewmodel.AppointmentViewModel
 import com.example.healthguard.viewmodel.ChatViewModel
 import com.example.healthguard.viewmodel.EmergencyViewModel
+import com.example.healthguard.viewmodel.GalleryViewModel
+import com.example.healthguard.viewmodel.LanguageViewModel
 import com.example.healthguard.viewmodel.MatchOverlayViewModel
 import com.example.healthguard.viewmodel.PillListViewModel
 import com.example.healthguard.viewmodel.StepViewModel
@@ -50,15 +52,23 @@ fun MyApp(
     themeViewModel: ThemeViewModel,
     chatVm: ChatViewModel,
     stepViewModel: StepViewModel,
-    onGoogleSignIn: () -> Unit
+    onGoogleSignIn: () -> Unit,
+    languageViewModel: LanguageViewModel,
+    galleryViewModel: GalleryViewModel
 ) {
     val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
     val navController = rememberNavController()
 
 
+    LaunchedEffect(Unit) {
+        languageViewModel.language
+            .collect { lang ->
+                chatVm.syncAppLanguage(lang)
+            }
+    }
+
     val emergencyViewModel: EmergencyViewModel = viewModel()
     val emergencyState by emergencyViewModel.uiState.collectAsState()
-
 
     LaunchedEffect(emergencyState.contacts, emergencyState.isLoading) {
         val currentRoute = navController.currentBackStackEntry?.destination?.route
@@ -71,12 +81,10 @@ fun MyApp(
             currentRoute != "emergency_setup") {
 
             navController.navigate("emergency_setup") {
-                // Ensure they can't go back to 'home' without a contact
                 popUpTo("home") { inclusive = false }
             }
         }
     }
-
 
     val medicineRepo = MedicineRepository()
     val overlayVm: MatchOverlayViewModel = viewModel(
@@ -91,27 +99,32 @@ fun MyApp(
     AppTheme(darkTheme = isDarkTheme) {
         NavHost(navController = navController, startDestination = "splash") {
 
-            // --- AUTH & MAIN ---
             composable("splash") { SplashScreen(navController, userViewModel) }
-            composable("login") { LoginScreen(navController, userViewModel, onGoogleSignIn) }
-            composable("signup") { SignUpScreen(navController, userViewModel, onGoogleSignIn) }
-            composable("home") { HomeScreen(navController, userViewModel, themeViewModel) }
 
-            // --- EMERGENCY (Shared VM) ---
-            composable("emergency") {
-                EmergencyScreen(
-                    viewModel = emergencyViewModel,
-                    navController = navController
+            composable("login") {
+                LoginScreen(
+                    navController = navController,
+                    userViewModel = userViewModel,
+                    languageViewModel = languageViewModel,
+                    onGoogleSignIn = onGoogleSignIn
                 )
+            }
+
+            composable("signup") {
+                SignUpScreen(navController, userViewModel, onGoogleSignIn, languageViewModel)
+            }
+
+            composable("home") {
+                HomeScreen(navController, userViewModel, themeViewModel, languageViewModel)
+            }
+
+            composable("emergency") {
+                EmergencyScreen(viewModel = emergencyViewModel, navController = navController)
             }
 
             composable("emergency_setup") {
-                EmergencySetupScreen(
-                    viewModel = emergencyViewModel,
-                    navController = navController
-                )
+                EmergencySetupScreen(viewModel = emergencyViewModel, navController = navController)
             }
-
 
             composable("pills") {
                 val listViewModel: PillListViewModel = viewModel()
@@ -135,7 +148,7 @@ fun MyApp(
             }
 
             composable("camera") {
-                val context = LocalContext.current  // move it here
+                val context = LocalContext.current
                 CameraScreen(navController = navController) { file ->
                     chatVm.processScannedImageAndSave(file, context)
                     navController.navigate("chat/new")
@@ -143,16 +156,17 @@ fun MyApp(
             }
 
             composable("gallery") {
-                val context = LocalContext.current  // and here
+                val context = LocalContext.current
                 GalleryScreen(
                     navController = navController,
-                    chatVm = chatVm
-                ) { file ->
-                    chatVm.processScannedImageAndSave(file, context)
-                    navController.navigate("chat/new?title=Ανάλυση Εικόνας")
-                }
+                    chatVm = chatVm,
+                    onImageSelected = { file ->
+                        chatVm.processScannedImageAndSave(file, context)
+                        navController.navigate("chat/new?title=Ανάλυση Εικόνας")
+                    },
+                    galleryViewModel = galleryViewModel
+                )
             }
-
 
             composable("stats") { StatsScreen(viewModel = stepViewModel) }
 
@@ -174,7 +188,6 @@ fun MyApp(
                 val vm: AppointmentViewModel = viewModel()
                 AddAppointmentScreen(viewModel = vm, navController = navController, appointmentId = id)
             }
-
 
             composable(
                 route = "chat/{sessionId}?title={title}",
@@ -203,11 +216,11 @@ fun MyApp(
                 ChatScreen(
                     vm = chatVm,
                     startWithSessionId = if (sessionId == "new") null else sessionId,
-                    startTitle = decodedTitle
+                    startTitle = decodedTitle,
+                    languageViewModel = languageViewModel
                 )
             }
         }
-
 
         MatchBubbleOverlay(
             vm = overlayVm,

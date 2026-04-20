@@ -1,5 +1,9 @@
 package com.example.healthguard.presentation.home
 
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
@@ -49,12 +53,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.healthguard.R
 import com.example.healthguard.data.network.steps.Injection
 import com.example.healthguard.data.network.steps.StepTrackingService
+import com.example.healthguard.viewmodel.LanguageViewModel
 import com.example.healthguard.viewmodel.ThemeViewModel
 import com.example.healthguard.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -65,26 +73,64 @@ import kotlinx.coroutines.delay
 fun HomeScreen(
     navController: NavController,
     userViewModel: UserViewModel,
-    themeViewModel: ThemeViewModel
+    themeViewModel: ThemeViewModel,
+    languageViewModel: LanguageViewModel
 ) {
     val user by userViewModel.userProfile.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
     val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
-
+    val context = LocalContext.current   // moved to top level so toggle can use it
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val backendStatus by userViewModel.backendStatus.collectAsState() // <-- from UserViewModel
+    val backendStatus by userViewModel.backendStatus.collectAsState()
 
+    // Pre-read for use in snackbar callbacks
+    val strConnected = stringResource(R.string.home_connected)
 
     LaunchedEffect(Unit) {
         userViewModel.loadUserData()
-        userViewModel.pingBackend() // calls /health
+        userViewModel.pingBackend()
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!granted) {
+                ActivityCompat.requestPermissions(
+                    context as Activity,
+                    arrayOf(Manifest.permission.ACTIVITY_RECOGNITION),
+                    100
+                )
+            }
+        }
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!granted) {
+                ActivityCompat.requestPermissions(
+                    context as Activity,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    101
+                )
+            }
+        }
+
+
+        StepTrackingService.start(context)
     }
 
     LaunchedEffect(backendStatus) {
         when {
             backendStatus.equals("OK", ignoreCase = true) ->
-                snackbarHostState.showSnackbar("Connected to server ✅")
+                snackbarHostState.showSnackbar(strConnected)
             backendStatus.startsWith("Error") ->
                 snackbarHostState.showSnackbar(backendStatus)
         }
@@ -107,7 +153,6 @@ fun HomeScreen(
                     .verticalScroll(rememberScrollState())
             ) {
 
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -120,7 +165,6 @@ fun HomeScreen(
                             modifier = Modifier.size(150.dp)
                         )
                     }
-
 
                     Box {
                         IconButton(onClick = { showSettings = !showSettings }) {
@@ -157,16 +201,19 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Settings",
+                                text = stringResource(R.string.home_settings),
                                 style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
                             )
 
                             HorizontalDivider()
 
+
                             Text(
-                                text = "Appearance",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                text = stringResource(R.string.home_appearance),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium
+                                ),
                                 modifier = Modifier.padding(start = 16.dp, top = 12.dp)
                             )
 
@@ -181,7 +228,10 @@ fun HomeScreen(
                                     selected = !isDarkTheme,
                                     onClick = { themeViewModel.toggleTheme(false) }
                                 )
-                                Text("Light theme", modifier = Modifier.padding(start = 8.dp))
+                                Text(
+                                    stringResource(R.string.home_light_theme),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
                             }
 
                             Row(
@@ -195,11 +245,40 @@ fun HomeScreen(
                                     selected = isDarkTheme,
                                     onClick = { themeViewModel.toggleTheme(true) }
                                 )
-                                Text("Dark theme", modifier = Modifier.padding(start = 8.dp))
+                                Text(
+                                    stringResource(R.string.home_dark_theme),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
                             }
 
                             HorizontalDivider()
-                            val context = LocalContext.current
+
+
+                            Text(
+                                text = stringResource(R.string.home_language),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                modifier = Modifier.padding(start = 16.dp, top = 12.dp)
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        languageViewModel.toggleLanguage(context as Activity)
+                                        showSettings = false
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                // No ic_language needed — the toggle label itself is the visual cue
+                                Text(stringResource(R.string.lang_toggle))
+                            }
+
+                            HorizontalDivider()
+
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
@@ -216,10 +295,10 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_logout),
-                                    contentDescription = "Logout"
+                                    contentDescription = stringResource(R.string.home_sign_out)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sign out")
+                                Text(stringResource(R.string.home_sign_out))
                             }
                         }
                     }
@@ -228,9 +307,8 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 var showWelcome by remember { mutableStateOf(true) }
-
                 LaunchedEffect(Unit) {
-                    delay(3000) // 3 seconds
+                    delay(3000)
                     showWelcome = false
                 }
 
@@ -239,7 +317,7 @@ fun HomeScreen(
                     exit = fadeOut(animationSpec = tween(600))
                 ) {
                     Text(
-                        text = "Welcome, ${user?.firstName ?: "User"}",
+                        text = stringResource(R.string.home_welcome, user?.firstName ?: ""),
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -249,7 +327,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-
                 Column {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -257,13 +334,13 @@ fun HomeScreen(
                     ) {
                         HomeActionButton(
                             icon = R.drawable.ic_camera,
-                            label = "Scan Medicine",
+                            label = stringResource(R.string.home_scan_medicine),
                             onClick = { navController.navigate("camera") },
                             modifier = Modifier.weight(1f)
                         )
                         HomeActionButton(
                             icon = R.drawable.ic_pill,
-                            label = "Today's Pills",
+                            label = stringResource(R.string.home_todays_pills),
                             onClick = { navController.navigate("pills") },
                             modifier = Modifier.weight(1f)
                         )
@@ -277,13 +354,13 @@ fun HomeScreen(
                     ) {
                         HomeActionButton(
                             icon = R.drawable.ic_calendar,
-                            label = "Appointments",
+                            label = stringResource(R.string.home_appointments),
                             onClick = { navController.navigate("appointment_list") },
                             modifier = Modifier.weight(1f)
                         )
                         HomeActionButton(
                             icon = R.drawable.ic_stats,
-                            label = "Health Stats",
+                            label = stringResource(R.string.home_health_stats),
                             onClick = { navController.navigate("stats") },
                             modifier = Modifier.weight(1f)
                         )
@@ -294,9 +371,7 @@ fun HomeScreen(
 
                 Button(
                     onClick = { navController.navigate("emergency") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE45745))
                 ) {
@@ -307,16 +382,14 @@ fun HomeScreen(
                         tint = Color.White
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Emergency", color = Color.White)
+                    Text(stringResource(R.string.home_emergency), color = Color.White)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(
                     onClick = { navController.navigate("gallery") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
@@ -325,7 +398,7 @@ fun HomeScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Gallery")
+                    Text(stringResource(R.string.home_gallery))
                 }
             }
         }

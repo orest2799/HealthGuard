@@ -54,6 +54,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -63,6 +64,7 @@ import androidx.core.graphics.createBitmap
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.healthguard.R
 import com.example.healthguard.viewmodel.CameraViewModel
 import com.example.healthguard.viewmodel.utils.Detection
 import java.io.File
@@ -193,7 +195,8 @@ fun CameraScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        // back arrow
+                        contentDescription = stringResource(R.string.camera_back) ,
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
                     )
@@ -224,7 +227,7 @@ fun CameraScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PhotoLibrary,
-                            contentDescription = "Open Gallery",
+                            contentDescription = stringResource(R.string.camera_open_gallery),
                             tint = Color.White,
                             modifier = Modifier.size(28.dp)
                         )
@@ -276,7 +279,7 @@ fun CameraScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Cameraswitch,
-                            contentDescription = "Flip Camera",
+                            contentDescription = stringResource(R.string.camera_flip),
                             tint = Color.White,
                             modifier = Modifier.size(28.dp)
                         )
@@ -285,7 +288,7 @@ fun CameraScreen(
 
             } else {
                 Text(
-                    "Camera permission required",
+                    stringResource(R.string.camera_permission_required),
                     color = Color.White,
                     modifier = Modifier.align(Alignment.Center)
                 )

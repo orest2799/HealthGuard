@@ -65,28 +65,27 @@ class AppointmentNotificationHelper(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-
         val brandTeal = "#4DB6AC".toColorInt()
 
+        val contentText = if (location.isNotBlank()) {
+            "$message • $location"
+        } else {
+            message
+        }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            // 1. Ensure ic_notification_shield is the Vector (.xml) you made via Clip Art
             .setSmallIcon(R.drawable.ic_notification)
-
-            // 2. This sets the accent color of the icon circle to your teal
             .setColor(brandTeal)
-
-            // 3. This applies the brand color to the notification elements
             .setColorized(true)
-
             .setContentTitle(title)
-            .setContentText(message)
+            .setContentText(contentText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
+            .setContentIntent(openPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
-            .build() // Added missing closing parenthesis here
+            .build()
 
-        // Use NotificationManagerCompat to trigger the notification
         NotificationManagerCompat.from(context)
             .notify(System.currentTimeMillis().toInt(), notification)
     }

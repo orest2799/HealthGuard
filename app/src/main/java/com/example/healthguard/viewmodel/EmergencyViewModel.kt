@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.healthguard.R
 import com.example.healthguard.data.network.emergency.EmergencyContact
 import com.example.healthguard.data.network.emergency.EmergencyUiState
 import com.google.firebase.auth.FirebaseAuth
@@ -31,23 +32,29 @@ class EmergencyViewModel : ViewModel() {
     var selectedCountryCode by mutableStateOf("+30")
     val availableCountryCodes = listOf("+30", "+357", "+44", "+1", "+49")
 
-    // This creates its own setter automatically
     var isLocationLoading by mutableStateOf(false)
 
-    init { loadContacts() }
+    init {
+        loadContacts()
+    }
 
     fun loadContacts() {
         val currentUserId = auth.currentUser?.uid ?: ""
         if (currentUserId.isEmpty()) {
-            _uiState.update { it.copy(contacts = emptyList()) } // Clear if no user
+            _uiState.update { it.copy(contacts = emptyList()) }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                // Fetch from the SPECIFIC current userId path
-                val snapshot = database.child("users").child(currentUserId).child("emergency").get().await()
+                val snapshot = database
+                    .child("users")
+                    .child(currentUserId)
+                    .child("emergency")
+                    .get()
+                    .await()
+
                 val contacts = mutableListOf<EmergencyContact>()
 
                 if (snapshot.exists()) {
@@ -55,7 +62,7 @@ class EmergencyViewModel : ViewModel() {
                         child.getValue(EmergencyContact::class.java)?.let { contacts.add(it) }
                     }
                 }
-                // Update with the NEW user's data (replaces old data)
+
                 _uiState.update { it.copy(contacts = contacts, isLoading = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false) }
@@ -80,12 +87,13 @@ class EmergencyViewModel : ViewModel() {
         selectedCountryCode = "+30"
     }
 
-    // Add the '= {}' here to make it a default empty argument
     fun saveOrUpdateContact(newContact: EmergencyContact) {
         val currentList = _uiState.value.contacts.toMutableList()
 
         if (selectedContact != null) {
-            val index = currentList.indexOfFirst { it.phoneNumber == selectedContact!!.phoneNumber }
+            val index = currentList.indexOfFirst {
+                it.phoneNumber == selectedContact!!.phoneNumber
+            }
             if (index != -1) currentList[index] = newContact
         } else {
             if (currentList.size < 3) currentList.add(newContact)
@@ -93,14 +101,19 @@ class EmergencyViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                database.child("users").child(userId).child("emergency").child("contacts")
-                    .setValue(currentList).await()
+                database.child("users")
+                    .child(userId)
+                    .child("emergency")
+                    .child("contacts")
+                    .setValue(currentList)
+                    .await()
 
-                // UPDATE STATE HERE
-                _uiState.update { it.copy(
-                    contacts = currentList,
-                    navigateBack = true // <--- Trigger the navigation
-                ) }
+                _uiState.update {
+                    it.copy(
+                        contacts = currentList,
+                        navigateBack = true
+                    )
+                }
 
                 Log.d("EmergencyVM", "SAVE_DONE: List size is ${currentList.size}")
             } catch (e: Exception) {
@@ -110,7 +123,6 @@ class EmergencyViewModel : ViewModel() {
         selectedContact = null
     }
 
-    // Add this helper to reset the flag
     fun clearNavigation() {
         _uiState.update { it.copy(navigateBack = false) }
     }
@@ -124,23 +136,30 @@ class EmergencyViewModel : ViewModel() {
     private fun saveToFirebase(contacts: List<EmergencyContact>) {
         viewModelScope.launch {
             try {
-                database.child("users").child(userId).child("emergency").child("contacts").setValue(contacts).await()
+                database.child("users")
+                    .child(userId)
+                    .child("emergency")
+                    .child("contacts")
+                    .setValue(contacts)
+                    .await()
                 loadContacts()
-            } catch (e: Exception) { Log.e("FIREBASE", "Save failed: ${e.message}") }
+            } catch (e: Exception) {
+                Log.e("FIREBASE", "Save failed: ${e.message}")
+            }
         }
     }
 
     fun startEmergencyProtocol(context: Context, latitude: Double?, longitude: Double?) {
         val contact = _uiState.value.contacts.firstOrNull() ?: return
 
-        // FIXED: Use the 'q=' parameter for a reliable map pin
         val locationLink = if (latitude != null && longitude != null) {
-            "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude"
+            "https://www.google.com/maps?q=$latitude,$longitude"
         } else {
-            "Location Unavailable (GPS signal lost)"
+            context.getString(R.string.location_unavailable)
         }
 
-        val message = "EMERGENCY! I need help. My location: $locationLink"
+        val emergencyPrefix = context.getString(R.string.emergency_message_prefix)
+        val message = "$emergencyPrefix $locationLink"
 
         try {
             val smsIntent = Intent(Intent.ACTION_SENDTO).apply {

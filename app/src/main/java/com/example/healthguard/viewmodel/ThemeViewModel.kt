@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-// Define the dataStore delegate at the top level of the file or in a central location
+
 
 
 class ThemeViewModel(application: Application) : AndroidViewModel(application) {
@@ -22,7 +22,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            // 2. Changed 'themeFlow' to 'getTheme' to match your object
+
             ThemePreferences.getTheme(getApplication<Application>().dataStore).collectLatest { isDark ->
                 _isDarkTheme.value = isDark
             }
@@ -31,7 +31,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleTheme(enabled: Boolean) {
         viewModelScope.launch {
-            // 3. Pass the dataStore property instead of the context itself
+
             ThemePreferences.saveTheme(getApplication<Application>().dataStore, enabled)
         }
     }

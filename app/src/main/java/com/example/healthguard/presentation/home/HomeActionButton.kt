@@ -23,7 +23,7 @@ fun HomeActionButton(
     icon: Int,
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier // ✅ Accept modifier from caller
+    modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier

@@ -2,7 +2,6 @@ package com.example.healthguard.viewmodel
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.RectF
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -36,22 +35,11 @@ class CameraViewModel : ViewModel() {
                 bitmap.recycle()
                 return
             }
-            val result = detector?.detect(bitmap, 0.45f, 0.5f) ?: run {
+            val result = detector?.detect(bitmap, 0.7f, 0.5f) ?: run {
                 bitmap.recycle()
                 return
             }
-            detections = result.map { d ->
-                Detection(
-                    RectF(
-                        d.boundingBox.left / bitmap.width,
-                        d.boundingBox.top / bitmap.height,
-                        d.boundingBox.right / bitmap.width,
-                        d.boundingBox.bottom / bitmap.height
-                    ),
-                    d.label,
-                    d.confidence
-                )
-            }
+            detections = result
             bitmap.recycle()
         }
     }

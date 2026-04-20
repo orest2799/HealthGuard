@@ -40,32 +40,58 @@ class ChatViewModel : ViewModel() {
     private val _quickActions = MutableStateFlow<List<QuickAction>>(emptyList())
     val quickActions: StateFlow<List<QuickAction>> = _quickActions.asStateFlow()
 
+    private val _chatLanguage = MutableStateFlow("en")
+    val chatLanguage: StateFlow<String> = _chatLanguage.asStateFlow()
+
+    // Tracks whether the user has manually toggled the language in THIS session.
+    // Reset to false on clearChat() so the next session follows the app language again.
+    private var languageManuallySet = false
+
+    // Holds the latest app-level language so clearChat() can restore to it correctly.
+    private var appLanguageSnapshot = "en"
 
     private var currentSessionId: String? = null
     private var currentMedicineName: String? = null
     private var currentSubstance: String? = null
     private var currentStrength: String? = null
 
+    /**
+     * Called ONCE from MyApp when the app-level language is first known,
+     * and again only when the user changes the app language from the Settings screen.
+     * It must NOT be called repeatedly (e.g. from a LaunchedEffect that runs on every
+     * recomposition) because that would fight against the in-chat toggle.
+     *
+     * Safe to call multiple times with the same value — no-ops if already set correctly.
+     */
+    fun syncAppLanguage(appLang: String) {
+        appLanguageSnapshot = appLang
+        // Only push to chatLanguage if the user hasn't manually overridden it this session
+        if (!languageManuallySet) {
+            _chatLanguage.value = appLang
+        }
+    }
+
+    /**
+     * Called only by the in-chat language toggle button.
+     * Marks the language as manually set so syncAppLanguage won't interfere.
+     */
+    fun setChatLanguage(lang: String) {
+        languageManuallySet = true
+        _chatLanguage.value = lang
+    }
+
     fun processScannedImage(imageFile: File) {
         viewModelScope.launch {
             try {
                 _isSending.value = true
-                val result = chatRepo.processMedicineImage(imageFile)
-
-                when (result) {
+                when (val result = chatRepo.processMedicineImage(imageFile, _chatLanguage.value)) {
                     is ChatSessionResult.Success -> {
                         currentSessionId = result.sessionId
                         currentMedicineName = result.ocrResult.brand
                         currentSubstance = result.ocrResult.activeSubstance
                         currentStrength = result.ocrResult.strength
-
                         _messages.value = listOf(
-                            ChatMessage(
-                                id = UUID.randomUUID().toString(),
-                                text = result.reply,
-                                fromUser = false,
-                                sources = result.sources
-                            )
+                            ChatMessage(UUID.randomUUID().toString(), result.reply, false, result.sources)
                         )
                         _quickActions.value = result.quickActions.mapNotNull { m ->
                             val id = m["id"] ?: return@mapNotNull null
@@ -73,13 +99,11 @@ class ChatViewModel : ViewModel() {
                             val message = m["message"] ?: return@mapNotNull null
                             QuickAction(id, title, message)
                         }
-
-
                     }
                     is ChatSessionResult.Error -> addErrorMessage(result.message)
                 }
             } catch (e: Exception) {
-                addErrorMessage("Παρουσιάστηκε σφάλμα κατά την επεξεργασία της εικόνας.")
+                addErrorMessage("chat_error_image")
             } finally {
                 _isSending.value = false
             }
@@ -88,44 +112,38 @@ class ChatViewModel : ViewModel() {
 
     fun send(messageText: String) {
         if (messageText.isBlank() || _isSending.value) return
-
-
-        val sessionIdToSend: String? = currentSessionId
+        val sessionIdToSend = currentSessionId
 
         viewModelScope.launch {
             try {
                 _isSending.value = true
-
-
                 val userMsg = ChatMessage(UUID.randomUUID().toString(), messageText, true)
-                _messages.value = _messages.value + userMsg
+                _messages.value += userMsg
 
                 val result = chatRepo.sendMessage(
                     sessionId = sessionIdToSend,
                     message = messageText,
                     medicineContext = currentMedicineName,
                     activeSubstance = currentSubstance,
-                    strength = currentStrength
+                    strength = currentStrength,
+                    language = _chatLanguage.value
                 )
 
                 result.onSuccess { response ->
                     currentSessionId = response.sessionId
-
                     val botMsg = ChatMessage(
                         id = UUID.randomUUID().toString(),
                         text = response.reply,
                         fromUser = false,
                         sources = extractSourcesFromMetadata(response.metadata)
                     )
-                    _messages.value = _messages.value + botMsg
-
-                    // Backend-driven quick actions
+                    _messages.value += botMsg
                     _quickActions.value = extractQuickActions(response.metadata)
                 }.onFailure {
-                    addErrorMessage("Αδυναμία σύνδεσης με τον διακομιστή HealthGuard.")
+                    addErrorMessage("chat_error_connection")
                 }
             } catch (e: Exception) {
-                addErrorMessage("Σφάλμα συστήματος.")
+                addErrorMessage("chat_error_system")
             } finally {
                 _isSending.value = false
             }
@@ -141,6 +159,10 @@ class ChatViewModel : ViewModel() {
     }
 
     fun clearChat() {
+        // Reset manual flag so the next session follows the app language again
+        languageManuallySet = false
+        // Restore to whatever the app language currently is
+        _chatLanguage.value = appLanguageSnapshot
         currentSessionId = null
         currentMedicineName = null
         currentSubstance = null
@@ -150,27 +172,11 @@ class ChatViewModel : ViewModel() {
         _isSending.value = false
     }
 
-    private fun addErrorMessage(text: String) {
-        _messages.value = _messages.value + ChatMessage(UUID.randomUUID().toString(), text, false)
-    }
-
-    private fun extractSourcesFromMetadata(metadata: Map<String, Any?>?): List<ChatSource> {
-        val list = metadata?.get("sources") as? List<*> ?: return emptyList()
-        return list.mapNotNull { item ->
-            val m = item as? Map<*, *> ?: return@mapNotNull null
-            ChatSource(
-                title = m["title"]?.toString() ?: "Πηγή",
-                url = m["url"]?.toString() ?: ""
-            )
-        }
-    }
     fun processScannedImageAndSave(imageFile: File, context: Context) {
         viewModelScope.launch {
             try {
                 _isSending.value = true
-                val result = chatRepo.processMedicineImage(imageFile)
-
-                when (result) {
+                when (val result = chatRepo.processMedicineImage(imageFile, _chatLanguage.value)) {
                     is ChatSessionResult.Success -> {
                         Log.d("MEDICINE_SAVE", "brand=${result.ocrResult.brand}, strength=${result.ocrResult.strength}")
                         currentSessionId = result.sessionId
@@ -178,20 +184,12 @@ class ChatViewModel : ViewModel() {
                         currentSubstance = result.ocrResult.activeSubstance
                         currentStrength = result.ocrResult.strength
 
-                        // Save crop AFTER we have the medicine name
-                        val name = result.ocrResult.brand?.lowercase()
-                            ?.replace(" ", "_") ?: "unknown"
-                        val strength = result.ocrResult.strength?.lowercase()
-                            ?.replace(" ", "") ?: "unknown"
+                        val name = result.ocrResult.brand?.lowercase()?.replace(" ", "_") ?: "unknown"
+                        val strength = result.ocrResult.strength?.lowercase()?.replace(" ", "") ?: "unknown"
                         saveMedicineImage(context, imageFile, name, strength)
 
                         _messages.value = listOf(
-                            ChatMessage(
-                                id = UUID.randomUUID().toString(),
-                                text = result.reply,
-                                fromUser = false,
-                                sources = result.sources
-                            )
+                            ChatMessage(UUID.randomUUID().toString(), result.reply, false, result.sources)
                         )
                         _quickActions.value = result.quickActions.mapNotNull { m ->
                             val id = m["id"] ?: return@mapNotNull null
@@ -203,7 +201,7 @@ class ChatViewModel : ViewModel() {
                     is ChatSessionResult.Error -> addErrorMessage(result.message)
                 }
             } catch (e: Exception) {
-                addErrorMessage("Παρουσιάστηκε σφάλμα κατά την επεξεργασία της εικόνας.")
+                addErrorMessage("chat_error_image")
             } finally {
                 _isSending.value = false
             }
@@ -214,35 +212,25 @@ class ChatViewModel : ViewModel() {
         clearChat()
         currentMedicineName = medicineName
         currentStrength = strength
-        // Send a pre-built first message
-        send("Πες μου πληροφορίες για το $medicineName $strength")
+        val lang = if (_chatLanguage.value == "el") "Greek" else "English"
+        send("Tell me information about $medicineName $strength. Please respond in $lang.")
     }
 
-    private fun saveMedicineImage(context: Context, sourceFile: File, name: String, strength: String) {
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance()
-            .currentUser?.uid ?: "unknown"
-        val medicineDir = File(
-            context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES),
-            "$userId/Medicine"
-        )
-        if (!medicineDir.exists()) medicineDir.mkdirs()
-
-        // Sanitize: remove or replace characters invalid in filenames
-        val safeName = name.lowercase()
-            .replace(" ", "_")
-            .replace(Regex("[^a-z0-9_]"), "")
-
-        val safeStrength = strength.lowercase()
-            .replace(" ", "")
-            .replace("/", "-")          // 875/125 mg → 875-125mg
-            .replace(Regex("[^a-z0-9_\\-]"), "")
-
-        val targetFile = File(medicineDir, "${safeName}_${safeStrength}.jpg")
-
-        if (targetFile.exists()) return  // no duplicates
-
-        sourceFile.copyTo(targetFile, overwrite = false)
+    private fun addErrorMessage(text: String) {
+        _messages.value += ChatMessage(UUID.randomUUID().toString(), text, false)
     }
+
+    private fun extractSourcesFromMetadata(metadata: Map<String, Any?>?): List<ChatSource> {
+        val list = metadata?.get("sources") as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            ChatSource(
+                title = m["title"]?.toString() ?: "Source",
+                url = m["url"]?.toString() ?: ""
+            )
+        }
+    }
+
     private fun extractQuickActions(metadata: Map<String, Any?>?): List<QuickAction> {
         val list = metadata?.get("quickActions") as? List<*> ?: return emptyList()
         return list.mapNotNull { item ->
@@ -252,5 +240,21 @@ class ChatViewModel : ViewModel() {
             val message = m["message"]?.toString() ?: return@mapNotNull null
             QuickAction(id = id, title = title, message = message)
         }
+    }
+
+    private fun saveMedicineImage(context: Context, sourceFile: File, name: String, strength: String) {
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unknown"
+        val medicineDir = File(
+            context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES),
+            "$userId/Medicine"
+        )
+        if (!medicineDir.exists()) medicineDir.mkdirs()
+
+        val safeName = name.lowercase().replace(" ", "_").replace(Regex("[^a-z0-9_]"), "")
+        val safeStrength = strength.lowercase().replace(" ", "").replace("/", "-").replace(Regex("[^a-z0-9_\\-]"), "")
+        val targetFile = File(medicineDir, "${safeName}_${safeStrength}.jpg")
+
+        if (targetFile.exists()) return
+        sourceFile.copyTo(targetFile, overwrite = false)
     }
 }

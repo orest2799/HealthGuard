@@ -18,10 +18,14 @@ fun Route.chatRoutes() {
                 return@post
             }
 
+            // language comes from the request context — "el" or "en"
+            val language = request.context?.get("language") ?: "el"
+
             val response = GeminiService.chat(
                 message = request.text,
                 historyId = request.sessionId,
-                context = request.context
+                context = request.context,
+                language = language
             )
             call.respond(HttpStatusCode.OK, response)
 
@@ -32,7 +36,6 @@ fun Route.chatRoutes() {
         }
     }
 
-    // Image bytes (binary). Recommend setting Content-Type: image/jpeg/png/webp
     post("/chat/from-image") {
         try {
             val imageBytes = call.receive<ByteArray>()
@@ -41,7 +44,6 @@ fun Route.chatRoutes() {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Empty image body"))
                 return@post
             }
-
             if (imageBytes.size > 10 * 1024 * 1024) {
                 call.respond(HttpStatusCode.PayloadTooLarge, mapOf("error" to "Image too large (max 10MB)"))
                 return@post
@@ -53,34 +55,41 @@ fun Route.chatRoutes() {
                 return@post
             }
 
-            val brand = ocr.brand ?: "το φάρμακο"
+            val brand = ocr.brand ?: "the medicine"
             val substance = ocr.activeSubstance ?: ""
             val strength = ocr.strength ?: ""
             val form = ocr.form ?: ""
 
-            val firstMessage = """
-            Ο χρήστης έστειλε φωτογραφία συσκευασίας φαρμάκου.
-            MEDICINE_BRAND: $brand
-            ACTIVE_SUBSTANCE: $substance
-            STRENGTH: $strength
-            FORM: $form
+            // Default to Greek for image scans (can be changed if needed)
+            val language = call.request.headers["X-Chat-Language"] ?: "el"
 
-            Δώσε γενικές πληροφορίες:
-            - Τι είναι και σε τι χρησιμοποιείται
-            - Για ποιες ενδείξεις/χρήσεις
-            - Δραστική ουσία (και τι κάνει)
-            - Σημαντικές προφυλάξεις και πότε να μιλήσω με γιατρό/φαρμακοποιό
-        """.trimIndent()
+            val firstMessage = if (language == "el") """
+                Ο χρήστης έστειλε φωτογραφία συσκευασίας φαρμάκου.
+                MEDICINE_BRAND: $brand
+                ACTIVE_SUBSTANCE: $substance
+                STRENGTH: $strength
+                FORM: $form
+                Δώσε γενικές πληροφορίες για το φάρμακο.
+            """.trimIndent() else """
+                The user sent a photo of a medicine package.
+                MEDICINE_BRAND: $brand
+                ACTIVE_SUBSTANCE: $substance
+                STRENGTH: $strength
+                FORM: $form
+                Give general information about this medicine.
+            """.trimIndent()
 
             val chat = GeminiService.chat(
                 message = firstMessage,
-                historyId = null, // new session from image
+                historyId = null,
                 context = mapOf(
                     "brand" to brand,
                     "activeSubstance" to substance,
                     "strength" to strength,
-                    "form" to form
-                )
+                    "form" to form,
+                    "language" to language
+                ),
+                language = language
             )
 
             val meta = (chat.metadata ?: emptyMap()) + mapOf("ocr" to ocr)
@@ -92,5 +101,4 @@ fun Route.chatRoutes() {
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (e.message ?: "Unknown Error")))
         }
     }
-
 }

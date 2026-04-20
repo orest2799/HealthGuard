@@ -62,12 +62,11 @@ class AppointmentViewModel(
         val state = _uiState.value
         if (state.title.isBlank()) return
 
-        // FIX: Check if we have an existing ID in the state.
-        // If state.appointmentId is NOT null, use it. Otherwise, generate a new UUID.
+
         val finalId = state.appointmentId ?: UUID.randomUUID().toString()
 
         val appointment = Appointment(
-            id = finalId, // Use the finalId variable here
+            id = finalId,
             title = state.title.trim(),
             location = state.location.trim(),
             timestamp = state.timestamp,
@@ -81,13 +80,12 @@ class AppointmentViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
             try {
-                // 1. Cancel old alarms first to prevent double-notifications
+
                 AppointmentScheduler(context).cancelAll(appointment)
 
-                // 2. Save to Firebase (it will overwrite the old one because the ID matches)
+
                 dataSource.saveAppointment(appointment)
 
-                // 3. Schedule the new/updated alarms
                 AppointmentScheduler(context).scheduleAll(appointment)
 
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true) }
@@ -96,7 +94,7 @@ class AppointmentViewModel(
             }
         }
     }
-    // Add these functions to fix the errors in image_57251d.png
+
     fun loadAllAppointments() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -107,11 +105,11 @@ class AppointmentViewModel(
 
     fun deleteAppointment(context: Context, appointment: Appointment) {
         viewModelScope.launch {
-            // Cancel alarms first
+
             AppointmentScheduler(context).cancelAll(appointment)
-            // Delete from Firebase
+
             dataSource.deleteAppointment(appointment.id)
-            // Refresh the list
+
             loadAllAppointments()
         }
     }

@@ -50,12 +50,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.example.healthguard.R
 import com.example.healthguard.viewmodel.EmergencyViewModel
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
@@ -72,7 +74,7 @@ fun EmergencyScreen(
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
+        contract = ActivityResultContracts.RequestPermission()
     ) {
         viewModel.prepareForEdit(null)
         navController.navigate("emergency_setup")
@@ -80,41 +82,52 @@ fun EmergencyScreen(
 
     fun launchWithPermissionCheck() {
         val hasLocation = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val hasSms = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.SEND_SMS
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        if (hasLocation && hasSms) {
+        if (hasLocation) {
             viewModel.prepareForEdit(null)
             navController.navigate("emergency_setup")
         } else {
-            permissionsLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.SEND_SMS
-                )
-            )
+            permissionsLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
     LaunchedEffect(Unit) {
         viewModel.loadContacts()
+
+        val hasLocation = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasLocation) {
+            permissionsLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Emergency SOS", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        stringResource(R.string.emergency_title),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     if (state.contacts.isNotEmpty()) {
-                        IconButton(onClick = { navController.navigate("home") {
-                            popUpTo("emergency") { inclusive = true }
-                        }}) {
+                        IconButton(
+                            onClick = {
+                                navController.navigate("home") {
+                                    popUpTo("emergency") { inclusive = true }
+                                }
+                            }
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.emergency_back_cd)
                             )
                         }
                     }
@@ -130,7 +143,6 @@ fun EmergencyScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (state.contacts.isEmpty() && !state.isLoading) {
-                // --- 1. EMPTY STATE ---
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center,
@@ -144,24 +156,23 @@ fun EmergencyScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        "No Emergency Contacts",
+                        stringResource(R.string.emergency_no_contacts_title),
                         style = MaterialTheme.typography.headlineSmall,
                         color = Color.Gray
                     )
                     Text(
-                        "You must add at least one contact to use SOS features.",
+                        stringResource(R.string.emergency_no_contacts_desc),
                         textAlign = TextAlign.Center,
                         color = Color.Gray
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = { launchWithPermissionCheck() }) {
-                        Text("Add First Contact")
+                        Text(stringResource(R.string.emergency_add_first_contact))
                     }
                 }
             } else {
-                // --- 2. ACTIVE SOS STATE ---
                 Text(
-                    "Emergency Mode Active",
+                    stringResource(R.string.emergency_mode_active),
                     style = MaterialTheme.typography.titleMedium,
                     color = Color(0xFFE45745),
                     fontWeight = FontWeight.Bold
@@ -169,7 +180,6 @@ fun EmergencyScreen(
 
                 Spacer(modifier = Modifier.weight(0.3f))
 
-                // SOS BUTTON
                 Surface(
                     modifier = Modifier.size(220.dp),
                     shape = CircleShape,
@@ -179,7 +189,8 @@ fun EmergencyScreen(
                         Button(
                             onClick = {
                                 val hasPermission = ContextCompat.checkSelfPermission(
-                                    context, Manifest.permission.ACCESS_FINE_LOCATION
+                                    context,
+                                    Manifest.permission.ACCESS_FINE_LOCATION
                                 ) == PackageManager.PERMISSION_GRANTED
 
                                 if (hasPermission) {
@@ -210,7 +221,9 @@ fun EmergencyScreen(
                             modifier = Modifier.size(180.dp),
                             enabled = !viewModel.isLocationLoading,
                             shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE45745)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFE45745)
+                            ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
                         ) {
                             if (viewModel.isLocationLoading) {
@@ -222,7 +235,7 @@ fun EmergencyScreen(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
                                         Icons.Default.NotificationsActive,
-                                        null,
+                                        contentDescription = null,
                                         modifier = Modifier.size(32.dp),
                                         tint = Color.White
                                     )
@@ -240,7 +253,6 @@ fun EmergencyScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-
                 Button(
                     onClick = { viewModel.initiateEmergencyCall(context) },
                     modifier = Modifier
@@ -252,14 +264,20 @@ fun EmergencyScreen(
                     ),
                     shape = MaterialTheme.shapes.medium
                 ) {
-                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.Call,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("CALL PRIORITY CONTACT NOW", fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.emergency_call_cta),
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.weight(0.5f))
 
-                // CONTACTS LIST CARD
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -273,7 +291,7 @@ fun EmergencyScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Contacts (Hold to move to top)",
+                                stringResource(R.string.emergency_contacts_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -281,7 +299,7 @@ fun EmergencyScreen(
                                 IconButton(onClick = { launchWithPermissionCheck() }) {
                                     Icon(
                                         Icons.Default.Add,
-                                        "Add contact",
+                                        contentDescription = stringResource(R.string.emergency_add_contact_cd),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -340,19 +358,21 @@ fun EmergencyScreen(
                                 IconButton(onClick = { viewModel.deleteContact(contact) }) {
                                     Icon(
                                         Icons.Default.Delete,
-                                        "Delete",
+                                        contentDescription = stringResource(R.string.emergency_delete_cd),
                                         tint = Color.Red.copy(alpha = 0.6f),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
 
-                                IconButton(onClick = {
-                                    viewModel.prepareForEdit(contact)
-                                    navController.navigate("emergency_setup")
-                                }) {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.prepareForEdit(contact)
+                                        navController.navigate("emergency_setup")
+                                    }
+                                ) {
                                     Icon(
                                         Icons.Default.Edit,
-                                        "Edit",
+                                        contentDescription = stringResource(R.string.emergency_edit_cd),
                                         tint = Color.Gray,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -364,7 +384,7 @@ fun EmergencyScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "SOS pre-fills an SMS with your location. Tap 'Call' to dial manually.",
+                    stringResource(R.string.emergency_footer),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Gray,
                     textAlign = TextAlign.Center

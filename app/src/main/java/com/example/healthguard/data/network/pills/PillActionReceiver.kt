@@ -7,9 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
-import com.example.healthguard.domain.model.pills.notifications.PillNotificationConstants
-import com.example.healthguard.domain.model.pills.notifications.PillNotificationHelper
-import com.example.healthguard.domain.model.pills.notifications.PillReminderReceiver
+import com.example.healthguard.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class PillActionReceiver : BroadcastReceiver() {
@@ -24,16 +25,25 @@ class PillActionReceiver : BroadcastReceiver() {
 
         when (intent.action) {
             ACTION_TAKEN -> {
-                Log.d("PILL_DEBUG", "Taken pressed for $pillId")
+                val takenPillId = intent.getStringExtra(PillNotificationConstants.EXTRA_PILL_ID).orEmpty()
+                val takenHour = intent.getIntExtra(PillNotificationConstants.EXTRA_HOUR, 0)
+                val takenMinute = intent.getIntExtra(PillNotificationConstants.EXTRA_MINUTE, 0)
 
-                cancelRepeatAlarm(context, pillId)
+                cancelRepeatAlarm(context, takenPillId)
+                PillNotificationHelper(context).cancelNotification(takenPillId)
 
-                PillNotificationHelper(context).cancelNotification(pillId)
+                val timeKey = buildTimeKey(takenPillId, takenHour, takenMinute)
+                val dataSource = PillLogFirebaseDataSource()
 
-                Toast.makeText(context, "$medicineName marked as taken", Toast.LENGTH_SHORT).show()
+                CoroutineScope(Dispatchers.IO).launch {
+                    dataSource.markDoseTaken(timeKey)
+                }
 
-                // Later:
-                // save "taken" state to Firebase here
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.pill_marked_taken),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
 
             ACTION_SNOOZE -> {
@@ -51,7 +61,11 @@ class PillActionReceiver : BroadcastReceiver() {
                     dayOfWeek = dayOfWeek
                 )
 
-                Toast.makeText(context, "Snoozed for 10 minutes", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.pill_snoozed_10min),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
@@ -95,13 +109,12 @@ class PillActionReceiver : BroadcastReceiver() {
                 pendingIntent
             )
         } catch (e: SecurityException) {
-            Log.e("PILL_DEBUG", "Snooze scheduling failed", e)
+            Log.e("PILL_DEBUG", "Snooze scheduling failed: missing permission", e)
         }
     }
 
     private fun cancelRepeatAlarm(context: Context, pillId: String) {
         val repeatIntent = Intent(context, PillReminderReceiver::class.java)
-
         val repeatPendingIntent = PendingIntent.getBroadcast(
             context,
             pillId.hashCode() + 999,
